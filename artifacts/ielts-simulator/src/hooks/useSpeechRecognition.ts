@@ -20,23 +20,22 @@ declare global {
   }
 }
 
-const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed"]);
-
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
+  // Refs that never go stale
+  const activeRef = useRef(false);          // true = user wants recognition running
+  const finalRef = useRef("");              // all finalised text across restarts
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Intent flag: true = user wants recognition running, false = user stopped it
-  const shouldBeRecordingRef = useRef(false);
-  // Accumulates all finalised text so restarts don't lose it
-  const finalTranscriptRef = useRef("");
+  // spawnRef is updated every render so onend always calls the latest copy
+  const spawnRef = useRef<() => void>(() => {});
 
   const SpeechRecognitionClass =
     typeof window !== "undefined"
@@ -45,30 +44,24 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const isSupported = !!SpeechRecognitionClass;
 
-  const resetTranscript = useCallback(() => {
-    setTranscript("");
-    setInterimTranscript("");
-    setAudioUrl(null);
-    finalTranscriptRef.current = "";
-  }, []);
+  // Defined as a plain function (not useCallback) so it can reference spawnRef cleanly.
+  // Assigned to spawnRef.current after every render.
+  function spawnRecognition() {
+    if (!SpeechRecognitionClass || !activeRef.current) return;
 
-  // Starts (or restarts) just the SpeechRecognition instance
-  const startRecognition = useCallback(() => {
-    if (!SpeechRecognitionClass || !shouldBeRecordingRef.current) return;
-
-    // Abort any existing instance cleanly before creating a new one
+    // Abort any existing instance before creating a new one
     if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
+      try { recognitionRef.current.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
 
-    const recognition = new SpeechRecognitionClass();
-    recognitionRef.current = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
+    const r = new SpeechRecognitionClass();
+    recognitionRef.current = r;
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-US";
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    r.onresult = (event: SpeechRecognitionEvent) => {
       let newFinal = "";
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -80,48 +73,90 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         }
       }
       if (newFinal) {
-        finalTranscriptRef.current += newFinal;
-        setTranscript(finalTranscriptRef.current);
+        finalRef.current += newFinal;
+        setTranscript(finalRef.current);
       }
       setInterimTranscript(interim);
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      // Only fatal errors should stop recording entirely
-      if (FATAL_ERRORS.has(event.error)) {
-        shouldBeRecordingRef.current = false;
+    r.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        // Fatal — user denied mic or browser blocked the service
+        activeRef.current = false;
         setRecordingState("stopped");
         setInterimTranscript("");
       }
-      // For no-speech, network, audio-capture, aborted etc: let onend handle restart
+      // All other errors (no-speech, network, audio-capture, aborted):
+      // do nothing — onend fires next and will restart via spawnRef
     };
 
-    recognition.onend = () => {
+    r.onend = () => {
       setInterimTranscript("");
-      // If the user hasn't explicitly stopped, restart immediately
-      if (shouldBeRecordingRef.current) {
-        // Small delay avoids rapid-fire restarts on some mobile browsers
-        setTimeout(() => startRecognition(), 100);
+      if (activeRef.current) {
+        // Always restart through the ref so we get the latest closure, not a stale one
+        setTimeout(() => spawnRef.current(), 150);
       }
     };
 
     try {
-      recognition.start();
+      r.start();
     } catch {
-      // If start() throws (e.g. already started), retry after a tick
-      setTimeout(() => startRecognition(), 200);
+      // start() can throw if called too quickly — retry via ref
+      setTimeout(() => spawnRef.current(), 200);
     }
-  }, [SpeechRecognitionClass]);
+  }
 
-  // Expose startRecognition via a stable ref so onend closure always sees latest
-  const startRecognitionRef = useRef(startRecognition);
-  startRecognitionRef.current = startRecognition;
+  // Keep spawnRef current every render
+  spawnRef.current = spawnRecognition;
+
+  const resetTranscript = useCallback(() => {
+    finalRef.current = "";
+    setTranscript("");
+    setInterimTranscript("");
+    setAudioUrl(null);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    // Reset state
+    finalRef.current = "";
+    setTranscript("");
+    setInterimTranscript("");
+    setAudioUrl(null);
+    chunksRef.current = [];
+    activeRef.current = true;
+    setRecordingState("recording");
+
+    // MediaRecorder — for audio playback after stopping
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioUrl(URL.createObjectURL(blob));
+      };
+      mr.start();
+    } catch {
+      activeRef.current = false;
+      setRecordingState("idle");
+      return;
+    }
+
+    // Speech recognition — uses its own internal mic access, independent of MediaRecorder
+    spawnRef.current();
+  }, []);
 
   const stopRecording = useCallback(() => {
-    shouldBeRecordingRef.current = false;
+    activeRef.current = false;
 
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -135,43 +170,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     setInterimTranscript("");
   }, []);
 
-  const startRecording = useCallback(async () => {
-    resetTranscript();
-    shouldBeRecordingRef.current = true;
-    setRecordingState("recording");
-    chunksRef.current = [];
-
-    // Start MediaRecorder for audio playback
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioUrl(URL.createObjectURL(blob));
-      };
-      mediaRecorder.start();
-    } catch {
-      shouldBeRecordingRef.current = false;
-      setRecordingState("idle");
-      return;
-    }
-
-    // Start speech recognition
-    startRecognition();
-  }, [resetTranscript, startRecognition]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      shouldBeRecordingRef.current = false;
-      if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch {} }
+      activeRef.current = false;
+      if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* ignore */ } }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
