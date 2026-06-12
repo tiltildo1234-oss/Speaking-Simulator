@@ -7,7 +7,7 @@ import RecordingPanel from "@/components/RecordingPanel";
 export default function Part3() {
   const { cueCard, goToPart, savePart3Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
-  const { transcript, interimTranscript, recordingState, isSupported, audioUrl, startRecording, stopRecording, resetTranscript } =
+  const { transcript, interimTranscript, recordingState, isSupported, audioUrl, startRecording, stopRecording, resetTranscript, debug } =
     useSpeechRecognition();
 
   const questions = cueCard.part3Questions;
@@ -86,6 +86,7 @@ export default function Part3() {
             onStart={startRecording}
             onStop={stopRecording}
             onReset={resetTranscript}
+            debug={debug}
           />
 
           <div className="flex justify-end">

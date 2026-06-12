@@ -2,6 +2,20 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 export type RecordingState = "idle" | "recording" | "stopped";
 
+export interface SpeechDebugInfo {
+  apiExists: boolean;
+  apiName: string;
+  startCalled: number;
+  onstartFired: number;
+  onresultFired: number;
+  onerrorFired: number;
+  onendFired: number;
+  lastError: string;
+  rawResultCount: number;
+  spawnCount: number;
+  logs: string[];
+}
+
 interface UseSpeechRecognitionReturn {
   transcript: string;
   interimTranscript: string;
@@ -11,6 +25,7 @@ interface UseSpeechRecognitionReturn {
   stopRecording: () => void;
   resetTranscript: () => void;
   audioUrl: string | null;
+  debug: SpeechDebugInfo;
 }
 
 declare global {
@@ -20,21 +35,43 @@ declare global {
   }
 }
 
+const MAX_LOGS = 30;
+
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [debug, setDebug] = useState<SpeechDebugInfo>(() => {
+    const cls =
+      typeof window !== "undefined"
+        ? window.SpeechRecognition || window.webkitSpeechRecognition
+        : null;
+    return {
+      apiExists: !!cls,
+      apiName: cls
+        ? window.SpeechRecognition
+          ? "window.SpeechRecognition"
+          : "window.webkitSpeechRecognition"
+        : "NOT FOUND",
+      startCalled: 0,
+      onstartFired: 0,
+      onresultFired: 0,
+      onerrorFired: 0,
+      onendFired: 0,
+      lastError: "",
+      rawResultCount: 0,
+      spawnCount: 0,
+      logs: [],
+    };
+  });
 
-  // Refs that never go stale
-  const activeRef = useRef(false);          // true = user wants recognition running
-  const finalRef = useRef("");              // all finalised text across restarts
+  const activeRef = useRef(false);
+  const finalRef = useRef("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // spawnRef is updated every render so onend always calls the latest copy
   const spawnRef = useRef<() => void>(() => {});
 
   const SpeechRecognitionClass =
@@ -44,16 +81,34 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const isSupported = !!SpeechRecognitionClass;
 
-  // Defined as a plain function (not useCallback) so it can reference spawnRef cleanly.
-  // Assigned to spawnRef.current after every render.
-  function spawnRecognition() {
-    if (!SpeechRecognitionClass || !activeRef.current) return;
+  function pushLog(msg: string) {
+    const ts = new Date().toISOString().slice(11, 23);
+    setDebug((prev) => ({
+      ...prev,
+      logs: [`[${ts}] ${msg}`, ...prev.logs].slice(0, MAX_LOGS),
+    }));
+  }
 
-    // Abort any existing instance before creating a new one
+  function spawnRecognition() {
+    if (!SpeechRecognitionClass) {
+      pushLog("ERROR: SpeechRecognition class not found — cannot spawn");
+      return;
+    }
+    if (!activeRef.current) {
+      pushLog("spawnRecognition skipped — activeRef is false");
+      return;
+    }
+
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
+
+    setDebug((prev) => ({
+      ...prev,
+      spawnCount: prev.spawnCount + 1,
+      logs: [`[${new Date().toISOString().slice(11, 23)}] spawnRecognition #${prev.spawnCount + 1}`, ...prev.logs].slice(0, MAX_LOGS),
+    }));
 
     const r = new SpeechRecognitionClass();
     recognitionRef.current = r;
@@ -61,7 +116,18 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     r.interimResults = true;
     r.lang = "en-US";
 
+    r.onstart = () => {
+      setDebug((prev) => ({ ...prev, onstartFired: prev.onstartFired + 1 }));
+      pushLog("onstart fired ✓");
+    };
+
     r.onresult = (event: SpeechRecognitionEvent) => {
+      setDebug((prev) => ({
+        ...prev,
+        onresultFired: prev.onresultFired + 1,
+        rawResultCount: prev.rawResultCount + event.results.length,
+      }));
+
       let newFinal = "";
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -72,6 +138,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
           interim += result[0].transcript;
         }
       }
+
+      pushLog(`onresult: final="${newFinal.trim()}" interim="${interim}"`);
+
       if (newFinal) {
         finalRef.current += newFinal;
         setTranscript(finalRef.current);
@@ -80,33 +149,40 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     };
 
     r.onerror = (event: SpeechRecognitionErrorEvent) => {
+      setDebug((prev) => ({
+        ...prev,
+        onerrorFired: prev.onerrorFired + 1,
+        lastError: event.error,
+      }));
+      pushLog(`onerror: "${event.error}"`);
+
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        // Fatal — user denied mic or browser blocked the service
         activeRef.current = false;
         setRecordingState("stopped");
         setInterimTranscript("");
       }
-      // All other errors (no-speech, network, audio-capture, aborted):
-      // do nothing — onend fires next and will restart via spawnRef
+      // All other errors: let onend restart
     };
 
     r.onend = () => {
+      setDebug((prev) => ({ ...prev, onendFired: prev.onendFired + 1 }));
+      pushLog(`onend fired — activeRef=${activeRef.current}`);
       setInterimTranscript("");
       if (activeRef.current) {
-        // Always restart through the ref so we get the latest closure, not a stale one
         setTimeout(() => spawnRef.current(), 150);
       }
     };
 
     try {
       r.start();
-    } catch {
-      // start() can throw if called too quickly — retry via ref
+      setDebug((prev) => ({ ...prev, startCalled: prev.startCalled + 1 }));
+      pushLog("recognition.start() called ✓");
+    } catch (err) {
+      pushLog(`recognition.start() threw: ${String(err)}`);
       setTimeout(() => spawnRef.current(), 200);
     }
   }
 
-  // Keep spawnRef current every render
   spawnRef.current = spawnRecognition;
 
   const resetTranscript = useCallback(() => {
@@ -117,7 +193,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   }, []);
 
   const startRecording = useCallback(async () => {
-    // Reset state
     finalRef.current = "";
     setTranscript("");
     setInterimTranscript("");
@@ -126,34 +201,46 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     activeRef.current = true;
     setRecordingState("recording");
 
-    // MediaRecorder — for audio playback after stopping
+    setDebug((prev) => ({
+      ...prev,
+      startCalled: 0,
+      onstartFired: 0,
+      onresultFired: 0,
+      onerrorFired: 0,
+      onendFired: 0,
+      lastError: "",
+      rawResultCount: 0,
+      spawnCount: 0,
+      logs: [`[${new Date().toISOString().slice(11, 23)}] --- startRecording ---`],
+    }));
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      pushLog("getUserMedia OK ✓");
 
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
-
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         setAudioUrl(URL.createObjectURL(blob));
       };
       mr.start();
-    } catch {
+      pushLog("MediaRecorder started ✓");
+    } catch (err) {
+      pushLog(`getUserMedia FAILED: ${String(err)}`);
       activeRef.current = false;
       setRecordingState("idle");
       return;
     }
 
-    // Speech recognition — uses its own internal mic access, independent of MediaRecorder
     spawnRef.current();
   }, []);
 
   const stopRecording = useCallback(() => {
     activeRef.current = false;
+    pushLog("stopRecording called");
 
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
@@ -170,7 +257,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     setInterimTranscript("");
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       activeRef.current = false;
@@ -193,5 +279,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     stopRecording,
     resetTranscript,
     audioUrl,
+    debug,
   };
 }

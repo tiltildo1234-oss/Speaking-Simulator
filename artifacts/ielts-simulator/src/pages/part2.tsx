@@ -10,7 +10,7 @@ type Phase = "intro" | "prep" | "speak";
 export default function Part2() {
   const { cueCard, goToPart, savePart2Answer } = useTest();
   const [phase, setPhase] = useState<Phase>("intro");
-  const { transcript, interimTranscript, recordingState, isSupported, audioUrl, startRecording, stopRecording, resetTranscript } =
+  const { transcript, interimTranscript, recordingState, isSupported, audioUrl, startRecording, stopRecording, resetTranscript, debug } =
     useSpeechRecognition();
 
   function handleStartPrep() {
@@ -137,6 +137,7 @@ export default function Part2() {
                 onStop={stopRecording}
                 onReset={() => { resetTranscript(); startRecording(); }}
                 label="Your Response"
+                debug={debug}
               />
 
               <div className="flex justify-end">

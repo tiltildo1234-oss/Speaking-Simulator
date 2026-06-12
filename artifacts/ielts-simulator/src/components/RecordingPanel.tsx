@@ -1,5 +1,6 @@
 import { Mic, MicOff, RotateCcw, Volume2, AlertCircle } from "lucide-react";
 import { useRef } from "react";
+import type { SpeechDebugInfo } from "@/hooks/useSpeechRecognition";
 
 interface Props {
   transcript: string;
@@ -12,6 +13,54 @@ interface Props {
   onReset: () => void;
   compact?: boolean;
   label?: string;
+  debug?: SpeechDebugInfo;
+}
+
+function Row({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  const color =
+    ok === true ? "text-emerald-400" : ok === false ? "text-red-400" : "text-slate-300";
+  return (
+    <div className="flex items-start gap-2 text-xs font-mono">
+      <span className="text-slate-500 shrink-0 w-36">{label}</span>
+      <span className={color}>{value}</span>
+    </div>
+  );
+}
+
+function DebugPanel({ info }: { info: SpeechDebugInfo }) {
+  return (
+    <div className="mt-4 rounded-xl bg-slate-900 border border-slate-700 p-4 space-y-3">
+      <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-2">🔬 Speech Recognition Debug</p>
+
+      <div className="space-y-1">
+        <Row label="API exists" value={info.apiName} ok={info.apiExists} />
+        <Row label="start() called" value={String(info.startCalled)} ok={info.startCalled > 0} />
+        <Row label="onstart fired" value={String(info.onstartFired)} ok={info.onstartFired > 0} />
+        <Row label="onresult fired" value={String(info.onresultFired)} ok={info.onresultFired > 0} />
+        <Row label="onerror fired" value={String(info.onerrorFired)} ok={info.onerrorFired === 0} />
+        <Row
+          label="last error"
+          value={info.lastError || "—"}
+          ok={info.lastError === ""}
+        />
+        <Row label="raw results recv'd" value={String(info.rawResultCount)} ok={info.rawResultCount > 0} />
+        <Row label="spawn count" value={String(info.spawnCount)} />
+      </div>
+
+      <div className="border-t border-slate-700 pt-2">
+        <p className="text-xs text-slate-500 font-mono mb-1">Event log (newest first):</p>
+        <div className="max-h-40 overflow-y-auto space-y-0.5">
+          {info.logs.length === 0 ? (
+            <p className="text-xs font-mono text-slate-600 italic">no events yet</p>
+          ) : (
+            info.logs.map((l, i) => (
+              <p key={i} className="text-xs font-mono text-slate-400 leading-relaxed">{l}</p>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function RecordingPanel({
@@ -25,6 +74,7 @@ export default function RecordingPanel({
   onReset,
   compact = false,
   label = "Your Answer",
+  debug,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -116,6 +166,9 @@ export default function RecordingPanel({
           )}
         </div>
       )}
+
+      {/* Debug panel */}
+      {debug && <DebugPanel info={debug} />}
     </div>
   );
 }
