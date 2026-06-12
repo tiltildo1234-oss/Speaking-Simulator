@@ -2,30 +2,16 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 export type RecordingState = "idle" | "recording" | "stopped";
 
-export interface SpeechDebugInfo {
-  apiExists: boolean;
-  apiName: string;
-  startCalled: number;
-  onstartFired: number;
-  onresultFired: number;
-  onerrorFired: number;
-  onendFired: number;
-  lastError: string;
-  rawResultCount: number;
-  spawnCount: number;
-  logs: string[];
-}
-
 interface UseSpeechRecognitionReturn {
   transcript: string;
   interimTranscript: string;
   recordingState: RecordingState;
   isSupported: boolean;
+  networkBlocked: boolean;
   startRecording: () => void;
   stopRecording: () => void;
   resetTranscript: () => void;
   audioUrl: string | null;
-  debug: SpeechDebugInfo;
 }
 
 declare global {
@@ -35,39 +21,16 @@ declare global {
   }
 }
 
-const MAX_LOGS = 30;
-
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [debug, setDebug] = useState<SpeechDebugInfo>(() => {
-    const cls =
-      typeof window !== "undefined"
-        ? window.SpeechRecognition || window.webkitSpeechRecognition
-        : null;
-    return {
-      apiExists: !!cls,
-      apiName: cls
-        ? window.SpeechRecognition
-          ? "window.SpeechRecognition"
-          : "window.webkitSpeechRecognition"
-        : "NOT FOUND",
-      startCalled: 0,
-      onstartFired: 0,
-      onresultFired: 0,
-      onerrorFired: 0,
-      onendFired: 0,
-      lastError: "",
-      rawResultCount: 0,
-      spawnCount: 0,
-      logs: [],
-    };
-  });
+  const [networkBlocked, setNetworkBlocked] = useState(false);
 
   const activeRef = useRef(false);
   const finalRef = useRef("");
+  const consecutiveNetworkErrorsRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -81,34 +44,13 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const isSupported = !!SpeechRecognitionClass;
 
-  function pushLog(msg: string) {
-    const ts = new Date().toISOString().slice(11, 23);
-    setDebug((prev) => ({
-      ...prev,
-      logs: [`[${ts}] ${msg}`, ...prev.logs].slice(0, MAX_LOGS),
-    }));
-  }
-
   function spawnRecognition() {
-    if (!SpeechRecognitionClass) {
-      pushLog("ERROR: SpeechRecognition class not found — cannot spawn");
-      return;
-    }
-    if (!activeRef.current) {
-      pushLog("spawnRecognition skipped — activeRef is false");
-      return;
-    }
+    if (!SpeechRecognitionClass || !activeRef.current) return;
 
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
-
-    setDebug((prev) => ({
-      ...prev,
-      spawnCount: prev.spawnCount + 1,
-      logs: [`[${new Date().toISOString().slice(11, 23)}] spawnRecognition #${prev.spawnCount + 1}`, ...prev.logs].slice(0, MAX_LOGS),
-    }));
 
     const r = new SpeechRecognitionClass();
     recognitionRef.current = r;
@@ -116,17 +58,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     r.interimResults = true;
     r.lang = "en-US";
 
-    r.onstart = () => {
-      setDebug((prev) => ({ ...prev, onstartFired: prev.onstartFired + 1 }));
-      pushLog("onstart fired ✓");
-    };
-
     r.onresult = (event: SpeechRecognitionEvent) => {
-      setDebug((prev) => ({
-        ...prev,
-        onresultFired: prev.onresultFired + 1,
-        rawResultCount: prev.rawResultCount + event.results.length,
-      }));
+      // Successful result — reset the network-error counter
+      consecutiveNetworkErrorsRef.current = 0;
+      setNetworkBlocked(false);
 
       let newFinal = "";
       let interim = "";
@@ -138,9 +73,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
           interim += result[0].transcript;
         }
       }
-
-      pushLog(`onresult: final="${newFinal.trim()}" interim="${interim}"`);
-
       if (newFinal) {
         finalRef.current += newFinal;
         setTranscript(finalRef.current);
@@ -149,24 +81,30 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     };
 
     r.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setDebug((prev) => ({
-        ...prev,
-        onerrorFired: prev.onerrorFired + 1,
-        lastError: event.error,
-      }));
-      pushLog(`onerror: "${event.error}"`);
-
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        // Fatal — mic permission denied
         activeRef.current = false;
         setRecordingState("stopped");
         setInterimTranscript("");
+        return;
       }
-      // All other errors: let onend restart
+
+      if (event.error === "network") {
+        consecutiveNetworkErrorsRef.current += 1;
+        // After 2 consecutive network failures, stop retrying and show the error
+        if (consecutiveNetworkErrorsRef.current >= 2) {
+          activeRef.current = false;
+          setNetworkBlocked(true);
+          setRecordingState("stopped");
+          setInterimTranscript("");
+        }
+        return;
+      }
+
+      // no-speech, audio-capture, aborted etc: let onend restart
     };
 
     r.onend = () => {
-      setDebug((prev) => ({ ...prev, onendFired: prev.onendFired + 1 }));
-      pushLog(`onend fired — activeRef=${activeRef.current}`);
       setInterimTranscript("");
       if (activeRef.current) {
         setTimeout(() => spawnRef.current(), 150);
@@ -175,10 +113,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
     try {
       r.start();
-      setDebug((prev) => ({ ...prev, startCalled: prev.startCalled + 1 }));
-      pushLog("recognition.start() called ✓");
-    } catch (err) {
-      pushLog(`recognition.start() threw: ${String(err)}`);
+    } catch {
       setTimeout(() => spawnRef.current(), 200);
     }
   }
@@ -194,42 +129,30 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const startRecording = useCallback(async () => {
     finalRef.current = "";
+    consecutiveNetworkErrorsRef.current = 0;
     setTranscript("");
     setInterimTranscript("");
     setAudioUrl(null);
+    setNetworkBlocked(false);
     chunksRef.current = [];
     activeRef.current = true;
     setRecordingState("recording");
 
-    setDebug((prev) => ({
-      ...prev,
-      startCalled: 0,
-      onstartFired: 0,
-      onresultFired: 0,
-      onerrorFired: 0,
-      onendFired: 0,
-      lastError: "",
-      rawResultCount: 0,
-      spawnCount: 0,
-      logs: [`[${new Date().toISOString().slice(11, 23)}] --- startRecording ---`],
-    }));
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      pushLog("getUserMedia OK ✓");
 
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         setAudioUrl(URL.createObjectURL(blob));
       };
       mr.start();
-      pushLog("MediaRecorder started ✓");
-    } catch (err) {
-      pushLog(`getUserMedia FAILED: ${String(err)}`);
+    } catch {
       activeRef.current = false;
       setRecordingState("idle");
       return;
@@ -240,7 +163,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const stopRecording = useCallback(() => {
     activeRef.current = false;
-    pushLog("stopRecording called");
 
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
@@ -275,10 +197,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     interimTranscript,
     recordingState,
     isSupported,
+    networkBlocked,
     startRecording,
     stopRecording,
     resetTranscript,
     audioUrl,
-    debug,
   };
 }

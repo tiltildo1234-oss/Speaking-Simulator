@@ -1,66 +1,17 @@
-import { Mic, MicOff, RotateCcw, Volume2, AlertCircle } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Volume2, AlertCircle, ExternalLink } from "lucide-react";
 import { useRef } from "react";
-import type { SpeechDebugInfo } from "@/hooks/useSpeechRecognition";
 
 interface Props {
   transcript: string;
   interimTranscript: string;
   recordingState: "idle" | "recording" | "stopped";
   isSupported: boolean;
+  networkBlocked: boolean;
   audioUrl: string | null;
   onStart: () => void;
   onStop: () => void;
   onReset: () => void;
-  compact?: boolean;
   label?: string;
-  debug?: SpeechDebugInfo;
-}
-
-function Row({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
-  const color =
-    ok === true ? "text-emerald-400" : ok === false ? "text-red-400" : "text-slate-300";
-  return (
-    <div className="flex items-start gap-2 text-xs font-mono">
-      <span className="text-slate-500 shrink-0 w-36">{label}</span>
-      <span className={color}>{value}</span>
-    </div>
-  );
-}
-
-function DebugPanel({ info }: { info: SpeechDebugInfo }) {
-  return (
-    <div className="mt-4 rounded-xl bg-slate-900 border border-slate-700 p-4 space-y-3">
-      <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-2">🔬 Speech Recognition Debug</p>
-
-      <div className="space-y-1">
-        <Row label="API exists" value={info.apiName} ok={info.apiExists} />
-        <Row label="start() called" value={String(info.startCalled)} ok={info.startCalled > 0} />
-        <Row label="onstart fired" value={String(info.onstartFired)} ok={info.onstartFired > 0} />
-        <Row label="onresult fired" value={String(info.onresultFired)} ok={info.onresultFired > 0} />
-        <Row label="onerror fired" value={String(info.onerrorFired)} ok={info.onerrorFired === 0} />
-        <Row
-          label="last error"
-          value={info.lastError || "—"}
-          ok={info.lastError === ""}
-        />
-        <Row label="raw results recv'd" value={String(info.rawResultCount)} ok={info.rawResultCount > 0} />
-        <Row label="spawn count" value={String(info.spawnCount)} />
-      </div>
-
-      <div className="border-t border-slate-700 pt-2">
-        <p className="text-xs text-slate-500 font-mono mb-1">Event log (newest first):</p>
-        <div className="max-h-40 overflow-y-auto space-y-0.5">
-          {info.logs.length === 0 ? (
-            <p className="text-xs font-mono text-slate-600 italic">no events yet</p>
-          ) : (
-            info.logs.map((l, i) => (
-              <p key={i} className="text-xs font-mono text-slate-400 leading-relaxed">{l}</p>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function RecordingPanel({
@@ -68,13 +19,12 @@ export default function RecordingPanel({
   interimTranscript,
   recordingState,
   isSupported,
+  networkBlocked,
   audioUrl,
   onStart,
   onStop,
   onReset,
-  compact = false,
   label = "Your Answer",
-  debug,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -96,6 +46,31 @@ export default function RecordingPanel({
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-3 py-2 text-xs mb-4">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           Live transcription requires Chrome or Edge.
+        </div>
+      )}
+
+      {networkBlocked && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm mb-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            <div>
+              <p className="font-semibold">Transcription blocked in preview</p>
+              <p className="text-xs mt-0.5 text-amber-700">
+                Chrome's speech API can't reach Google's servers from inside the Replit preview iframe.
+                Open the app directly in your browser tab for transcription to work.
+                Audio recording still works — you can play back your answer.
+              </p>
+            </div>
+          </div>
+          <a
+            href={window.location.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Open in new tab
+          </a>
         </div>
       )}
 
@@ -161,14 +136,15 @@ export default function RecordingPanel({
             <span className="text-slate-400 italic">{interimTranscript}</span>
           ) : (
             <span className="text-slate-400 italic">
-              {recordingState === "recording" ? "Listening… speak now" : "No speech detected. Try again."}
+              {recordingState === "recording"
+                ? "Listening… speak now"
+                : networkBlocked
+                ? "No transcript — open in a new tab to enable speech-to-text"
+                : "No speech detected. Try again."}
             </span>
           )}
         </div>
       )}
-
-      {/* Debug panel */}
-      {debug && <DebugPanel info={debug} />}
     </div>
   );
 }
