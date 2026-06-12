@@ -8,7 +8,7 @@ import RecordingPanel from "@/components/RecordingPanel";
 export default function Part1() {
   const { goToPart, savePart1Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
-  const { transcript, interimTranscript, recordingState, isSupported, networkBlocked, audioUrl, startRecording, stopRecording, resetTranscript } =
+  const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
   const currentQuestion = PART1_QUESTIONS[questionIndex];
@@ -16,15 +16,15 @@ export default function Part1() {
   const isLast = questionIndex === PART1_QUESTIONS.length - 1;
 
   useEffect(() => {
-    resetTranscript();
+    resetRecording();
   }, [questionIndex]);
 
   function handleNext() {
     if (recordingState === "recording") stopRecording();
-    if (transcript.trim() || audioUrl) {
-      savePart1Answer(currentQuestion.id, { transcript: transcript.trim(), audioUrl });
+    if (audioUrl) {
+      savePart1Answer(currentQuestion.id, { transcript: "", audioUrl });
     }
-    resetTranscript();
+    resetRecording();
     if (!isLast) {
       setQuestionIndex((i) => i + 1);
     } else {
@@ -70,15 +70,11 @@ export default function Part1() {
           </div>
 
           <RecordingPanel
-            transcript={transcript}
-            interimTranscript={interimTranscript}
             recordingState={recordingState}
-            isSupported={isSupported}
             audioUrl={audioUrl}
             onStart={startRecording}
             onStop={stopRecording}
-            onReset={resetTranscript}
-            networkBlocked={networkBlocked}
+            onReset={resetRecording}
           />
 
           <div className="flex justify-end">

@@ -10,7 +10,7 @@ type Phase = "intro" | "prep" | "speak";
 export default function Part2() {
   const { cueCard, goToPart, savePart2Answer } = useTest();
   const [phase, setPhase] = useState<Phase>("intro");
-  const { transcript, interimTranscript, recordingState, isSupported, networkBlocked, audioUrl, startRecording, stopRecording, resetTranscript } =
+  const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
   function handleStartPrep() {
@@ -24,8 +24,8 @@ export default function Part2() {
 
   function handleFinish() {
     if (recordingState === "recording") stopRecording();
-    if (transcript.trim() || audioUrl) {
-      savePart2Answer({ transcript: transcript.trim(), audioUrl });
+    if (audioUrl) {
+      savePart2Answer({ transcript: "", audioUrl });
     }
     goToPart("part3");
   }
@@ -128,16 +128,12 @@ export default function Part2() {
               </div>
 
               <RecordingPanel
-                transcript={transcript}
-                interimTranscript={interimTranscript}
                 recordingState={recordingState}
-                isSupported={isSupported}
                 audioUrl={audioUrl}
                 onStart={startRecording}
                 onStop={stopRecording}
-                onReset={() => { resetTranscript(); startRecording(); }}
+                onReset={() => { resetRecording(); startRecording(); }}
                 label="Your Response"
-                networkBlocked={networkBlocked}
               />
 
               <div className="flex justify-end">

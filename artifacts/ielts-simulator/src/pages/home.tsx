@@ -39,8 +39,8 @@ export default function Home() {
             </div>
             <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
               <Mic className="w-4 h-4 text-indigo-500 mx-auto mb-1" />
-              <p className="text-lg font-bold text-slate-800">Live</p>
-              <p className="text-xs text-slate-500">Transcript</p>
+              <p className="text-lg font-bold text-slate-800">Audio</p>
+              <p className="text-xs text-slate-500">Playback</p>
             </div>
           </div>
 
