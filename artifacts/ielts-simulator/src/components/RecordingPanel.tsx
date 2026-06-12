@@ -1,15 +1,5 @@
 import { Mic, MicOff, RotateCcw, Volume2, AlertCircle } from "lucide-react";
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import { useEffect, useRef } from "react";
-
-interface RecordingPanelProps {
-  onAnswer?: (transcript: string, audioUrl: string | null) => void;
-  autoSave?: boolean;
-}
-
-export function useRecordingPanel() {
-  return useSpeechRecognition();
-}
+import { useRef } from "react";
 
 interface Props {
   transcript: string;

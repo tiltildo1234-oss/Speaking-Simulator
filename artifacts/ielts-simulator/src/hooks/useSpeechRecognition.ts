@@ -20,6 +20,8 @@ declare global {
   }
 }
 
+const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed"]);
+
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -30,6 +32,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Intent flag: true = user wants recognition running, false = user stopped it
+  const shouldBeRecordingRef = useRef(false);
+  // Accumulates all finalised text so restarts don't lose it
+  const finalTranscriptRef = useRef("");
 
   const SpeechRecognitionClass =
     typeof window !== "undefined"
@@ -42,11 +49,79 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     setTranscript("");
     setInterimTranscript("");
     setAudioUrl(null);
+    finalTranscriptRef.current = "";
   }, []);
 
-  const stopRecording = useCallback(() => {
+  // Starts (or restarts) just the SpeechRecognition instance
+  const startRecognition = useCallback(() => {
+    if (!SpeechRecognitionClass || !shouldBeRecordingRef.current) return;
+
+    // Abort any existing instance cleanly before creating a new one
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
+
+    const recognition = new SpeechRecognitionClass();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let newFinal = "";
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          newFinal += result[0].transcript + " ";
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+      if (newFinal) {
+        finalTranscriptRef.current += newFinal;
+        setTranscript(finalTranscriptRef.current);
+      }
+      setInterimTranscript(interim);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // Only fatal errors should stop recording entirely
+      if (FATAL_ERRORS.has(event.error)) {
+        shouldBeRecordingRef.current = false;
+        setRecordingState("stopped");
+        setInterimTranscript("");
+      }
+      // For no-speech, network, audio-capture, aborted etc: let onend handle restart
+    };
+
+    recognition.onend = () => {
+      setInterimTranscript("");
+      // If the user hasn't explicitly stopped, restart immediately
+      if (shouldBeRecordingRef.current) {
+        // Small delay avoids rapid-fire restarts on some mobile browsers
+        setTimeout(() => startRecognition(), 100);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      // If start() throws (e.g. already started), retry after a tick
+      setTimeout(() => startRecognition(), 200);
+    }
+  }, [SpeechRecognitionClass]);
+
+  // Expose startRecognition via a stable ref so onend closure always sees latest
+  const startRecognitionRef = useRef(startRecognition);
+  startRecognitionRef.current = startRecognition;
+
+  const stopRecording = useCallback(() => {
+    shouldBeRecordingRef.current = false;
+
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -62,9 +137,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   const startRecording = useCallback(async () => {
     resetTranscript();
+    shouldBeRecordingRef.current = true;
     setRecordingState("recording");
     chunksRef.current = [];
 
+    // Start MediaRecorder for audio playback
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -75,60 +152,27 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
-
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
+        setAudioUrl(URL.createObjectURL(blob));
       };
-
       mediaRecorder.start();
     } catch {
+      shouldBeRecordingRef.current = false;
       setRecordingState("idle");
       return;
     }
 
-    if (!SpeechRecognitionClass) return;
+    // Start speech recognition
+    startRecognition();
+  }, [resetTranscript, startRecognition]);
 
-    const recognition = new SpeechRecognitionClass();
-    recognitionRef.current = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let final = "";
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          final += result[0].transcript + " ";
-        } else {
-          interim += result[0].transcript;
-        }
-      }
-      setTranscript((prev) => prev + final);
-      setInterimTranscript(interim);
-    };
-
-    recognition.onerror = () => {
-      stopRecording();
-    };
-
-    recognition.onend = () => {
-      setInterimTranscript("");
-    };
-
-    recognition.start();
-  }, [SpeechRecognitionClass, resetTranscript, stopRecording]);
-
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
+      shouldBeRecordingRef.current = false;
+      if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch {} }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
       if (streamRef.current) {
