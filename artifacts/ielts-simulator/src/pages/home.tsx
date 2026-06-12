@@ -1,40 +1,40 @@
-import { useLocation } from "wouter";
+import { useTest } from "@/context/TestContext";
 import { Mic, Clock, FileText, ChevronRight, CheckCircle } from "lucide-react";
 import { PART1_QUESTIONS } from "@/data/questions";
 
 export default function Home() {
-  const [, navigate] = useLocation();
+  const { goToPart } = useTest();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xl">
+    <div className="flex-1 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xl space-y-5">
         {/* Hero card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
               <Mic className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800">IELTS Speaking Simulator</h1>
-              <p className="text-sm text-slate-500">Part 1 — General Questions</p>
+              <h1 className="text-xl font-bold text-slate-800">IELTS Speaking Test</h1>
+              <p className="text-sm text-slate-500">Full simulation — Parts 1, 2 &amp; 3</p>
             </div>
           </div>
 
           <p className="text-slate-600 text-sm leading-relaxed mb-6">
-            Practice your IELTS Speaking Part 1 with {PART1_QUESTIONS.length} realistic questions. Speak your answer
-            aloud, and see your transcript in real time. Move at your own pace.
+            Practice the complete IELTS Speaking exam. Answer general questions in Part 1, give a
+            long talk from a cue card in Part 2, and discuss related topics in depth in Part 3.
           </p>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-8">
             <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
               <FileText className="w-4 h-4 text-indigo-500 mx-auto mb-1" />
-              <p className="text-lg font-bold text-slate-800">{PART1_QUESTIONS.length}</p>
-              <p className="text-xs text-slate-500">Questions</p>
+              <p className="text-lg font-bold text-slate-800">3</p>
+              <p className="text-xs text-slate-500">Parts</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
               <Clock className="w-4 h-4 text-indigo-500 mx-auto mb-1" />
-              <p className="text-lg font-bold text-slate-800">~15</p>
+              <p className="text-lg font-bold text-slate-800">~20</p>
               <p className="text-xs text-slate-500">Minutes</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
@@ -45,7 +45,7 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() => navigate("/simulator")}
+            onClick={() => goToPart("part1")}
             className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors text-sm"
           >
             Start Test
@@ -53,24 +53,45 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Questions preview */}
+        {/* Test structure */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Topics Covered</h2>
-          <div className="space-y-2">
-            {PART1_QUESTIONS.map((q) => (
-              <div key={q.id} className="flex items-center gap-3 text-sm">
-                <CheckCircle className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span className="text-slate-600">{q.topic}</span>
-                <span className="text-slate-300 hidden sm:inline">—</span>
-                <span className="text-slate-400 hidden sm:inline truncate">{q.question}</span>
-              </div>
-            ))}
+          <h2 className="text-sm font-semibold text-slate-700 mb-4">Test Structure</h2>
+          <div className="space-y-4">
+            <PartRow
+              number={1}
+              label="General Questions"
+              desc={`${PART1_QUESTIONS.length} questions on everyday topics — one at a time`}
+            />
+            <PartRow
+              number={2}
+              label="Cue Card"
+              desc="1-minute prep timer, then speak for up to 2 minutes"
+            />
+            <PartRow
+              number={3}
+              label="Discussion"
+              desc="5 in-depth questions linked to the Part 2 topic"
+            />
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
-          Microphone access is required. Works best in Chrome or Edge.
+        <p className="text-center text-xs text-slate-400">
+          Microphone access required. Live transcription works best in Chrome or Edge.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function PartRow({ number, label, desc }: { number: number; label: string; desc: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+        {number}
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-700">{label}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
       </div>
     </div>
   );
