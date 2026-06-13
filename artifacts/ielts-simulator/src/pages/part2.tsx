@@ -8,10 +8,12 @@ import Timer from "@/components/Timer";
 type Phase = "intro" | "prep" | "speak";
 
 export default function Part2() {
-  const { cueCard, goToPart, savePart2Answer } = useTest();
+  const { selectedTopic, goToPart, savePart2Answer } = useTest();
   const [phase, setPhase] = useState<Phase>("intro");
   const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
+
+  const part2 = selectedTopic?.part2;
 
   function handleStartPrep() {
     setPhase("prep");
@@ -30,35 +32,43 @@ export default function Part2() {
     goToPart("part3");
   }
 
+  if (!part2) return null;
+
   return (
     <div className="flex-1 flex flex-col">
-      {/* Sub-header */}
       <div className="bg-white border-b border-slate-200 px-6 py-3">
         <div className="max-w-2xl mx-auto">
-          <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">Part 2 — Cue Card</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
+            Part 2 — Cue Card
+          </p>
           <p className="text-xs text-slate-500 mt-0.5">
-            {phase === "intro" && "Read the cue card, then prepare for 1 minute before speaking for up to 2 minutes."}
+            {phase === "intro" &&
+              "Read the cue card, then prepare for 1 minute before speaking for up to 2 minutes."}
             {phase === "prep" && "Use this time to make notes and organise your ideas."}
-            {phase === "speak" && "Speak for up to 2 minutes on the topic. Try to cover all the points."}
+            {phase === "speak" &&
+              "Speak for up to 2 minutes on the topic. Try to cover all the points."}
           </p>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-2xl space-y-4">
-
           {/* Cue card */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
               </div>
-              <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Cue Card</span>
+              <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">
+                Cue Card
+              </span>
             </div>
-            <p className="text-lg font-semibold text-slate-800 mb-4">{cueCard.title}</p>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">You should say:</p>
+            <p className="text-lg font-semibold text-slate-800 mb-4">{part2.title}</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+              You should say:
+            </p>
             <ul className="space-y-2">
-              {cueCard.prompts.map((prompt, i) => (
+              {part2.prompts.map((prompt, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                   <span className="mt-0.5 w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center shrink-0">
                     {i + 1}
@@ -69,7 +79,6 @@ export default function Part2() {
             </ul>
           </div>
 
-          {/* Phase controls */}
           {phase === "intro" && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center">
               <p className="text-sm text-slate-600 mb-4">
@@ -132,7 +141,10 @@ export default function Part2() {
                 audioUrl={audioUrl}
                 onStart={startRecording}
                 onStop={stopRecording}
-                onReset={() => { resetRecording(); startRecording(); }}
+                onReset={() => {
+                  resetRecording();
+                  startRecording();
+                }}
                 label="Your Response"
               />
 

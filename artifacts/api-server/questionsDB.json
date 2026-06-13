@@ -1,0 +1,196 @@
+{
+  "quarters": [
+    {
+      "id": "q1",
+      "name": "Q1 – Everyday Life",
+      "topics": [
+        {
+          "id": "t1-daily-routine",
+          "topic": "Daily Routine",
+          "part1": {
+            "required": "Can you describe your typical daily routine?",
+            "follow_ups": [
+              "What time do you usually wake up in the morning?",
+              "How do you usually spend your evenings after work or study?",
+              "Has your daily routine changed compared to a few years ago?",
+              "Do you prefer following a strict schedule or being more flexible with your time?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a change you made to your daily routine that had a positive effect on your life.",
+            "prompts": [
+              "What the change was",
+              "When and why you made this change",
+              "What difficulties you faced in making the change",
+              "Why the change has had a positive effect"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "Why do you think many people struggle to maintain a healthy daily routine?",
+              "How has remote working changed the way people structure their day?",
+              "Do you think modern lifestyles are becoming too busy? Why?",
+              "Should schools teach children the importance of having a structured routine?"
+            ]
+          }
+        },
+        {
+          "id": "t1-food",
+          "topic": "Food & Cooking",
+          "part1": {
+            "required": "Do you enjoy cooking? Why or why not?",
+            "follow_ups": [
+              "How often do you eat out at restaurants or order food in?",
+              "What is your favourite meal of the day and why?",
+              "Are eating habits in your country changing? In what way?",
+              "Do you prefer home-cooked food or restaurant food?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a memorable meal you have had.",
+            "prompts": [
+              "Where you had the meal and who you were with",
+              "What you ate and what made it special",
+              "How you felt during and after the meal",
+              "Why this meal was so memorable"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "How has globalisation changed the food culture in your country?",
+              "Do you think people today are more health-conscious about food than in the past?",
+              "What are the advantages and disadvantages of fast food for modern society?",
+              "Should governments do more to regulate unhealthy food products? Why?"
+            ]
+          }
+        },
+        {
+          "id": "t1-technology",
+          "topic": "Technology",
+          "part1": {
+            "required": "How important is technology in your daily life?",
+            "follow_ups": [
+              "How much time do you spend on your phone each day?",
+              "Which apps or websites do you use most often, and why?",
+              "Do you think people rely too much on technology in their daily lives?",
+              "How has technology changed the way people communicate with friends and family?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a piece of technology that has had a significant impact on your life.",
+            "prompts": [
+              "What the technology is",
+              "When you started using it and how you use it",
+              "What you did before you had access to this technology",
+              "Why it has had such a significant impact on your life"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "How has technology transformed the way people work over the last decade?",
+              "Do you think social media has had a positive or negative effect on society overall?",
+              "How might artificial intelligence change daily life in the next twenty years?",
+              "Should children be given smartphones? At what age is it appropriate?"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "q2",
+      "name": "Q2 – Society & Ideas",
+      "topics": [
+        {
+          "id": "t2-education",
+          "topic": "Education",
+          "part1": {
+            "required": "Are you currently studying or working? Tell me about it.",
+            "follow_ups": [
+              "Did you enjoy school when you were younger?",
+              "What subjects did you find most interesting at school and why?",
+              "Do you think it is important to continue learning after formal education ends?",
+              "How do you prefer to study — alone or with others?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a teacher or lecturer who had a great influence on you.",
+            "prompts": [
+              "Who this person was and what subject they taught",
+              "How long you knew this person",
+              "What made this teacher different from others",
+              "How this teacher influenced your life or studies"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "How important is a university degree for finding a good job today?",
+              "In what ways has technology changed the experience of studying at school or university?",
+              "Do you think private schools provide a better education than state schools? Why?",
+              "What skills do you think future generations will need that are not currently taught in schools?"
+            ]
+          }
+        },
+        {
+          "id": "t2-environment",
+          "topic": "Environment",
+          "part1": {
+            "required": "How concerned are you personally about environmental issues?",
+            "follow_ups": [
+              "Do you do anything in your daily life to protect the environment?",
+              "Are environmental issues discussed a lot in your country?",
+              "Have you noticed any changes to the environment in the area where you live?",
+              "Do you think individuals can make a real difference to environmental problems?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a natural place you have visited that made a strong impression on you.",
+            "prompts": [
+              "Where this place is and how you got there",
+              "What you saw and did there",
+              "Who you went with or whether you went alone",
+              "Why this place made such a strong impression on you"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "Who do you think bears the most responsibility for protecting the environment — governments, businesses, or individuals?",
+              "How effective do you think international agreements on climate change are?",
+              "Do you think economic development and environmental protection can go hand in hand?",
+              "What lifestyle changes do you think people need to make to tackle climate change?"
+            ]
+          }
+        },
+        {
+          "id": "t2-health",
+          "topic": "Health & Wellbeing",
+          "part1": {
+            "required": "How important is keeping healthy to you in your daily life?",
+            "follow_ups": [
+              "Do you do any regular exercise? What kind?",
+              "Do you think you have a healthy diet? Why or why not?",
+              "How do you cope with stress in your life?",
+              "Has your attitude to health changed as you have got older?"
+            ]
+          },
+          "part2": {
+            "title": "Describe a time when you successfully maintained a healthy habit for a period of time.",
+            "prompts": [
+              "What the habit was",
+              "How long you maintained it and how you started",
+              "What challenges you faced in keeping up the habit",
+              "What benefits you noticed from maintaining this habit"
+            ]
+          },
+          "part3": {
+            "questions": [
+              "To what extent should governments be responsible for the health of their citizens?",
+              "Why do you think mental health has become such an important topic in recent years?",
+              "How has modern technology affected people's physical health — positively and negatively?",
+              "Do you think people today are more or less healthy than people were fifty years ago? Why?"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -5,14 +5,14 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import RecordingPanel from "@/components/RecordingPanel";
 
 export default function Part3() {
-  const { cueCard, goToPart, savePart3Answer } = useTest();
+  const { selectedTopic, goToPart, savePart3Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
   const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
-  const questions = cueCard.part3Questions;
-  const currentQuestion = questions[questionIndex];
-  const progress = ((questionIndex + 1) / questions.length) * 100;
+  const questions = selectedTopic?.part3.questions ?? [];
+  const currentQuestion = questions[questionIndex] ?? "";
+  const progress = questions.length > 0 ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const isLast = questionIndex === questions.length - 1;
 
   useEffect(() => {
@@ -34,15 +34,19 @@ export default function Part3() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Sub-header */}
       <div className="bg-white border-b border-slate-200 px-6 py-3">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">Part 3 — Discussion</p>
-            <p className="text-xs text-slate-500 mt-0.5">Related to: {cueCard.topic}</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
+              Part 3 — Discussion
+            </p>
+            {selectedTopic && (
+              <p className="text-xs text-slate-500 mt-0.5">Related to: {selectedTopic.topic}</p>
+            )}
           </div>
           <p className="text-sm font-bold text-slate-700">
-            {questionIndex + 1} <span className="font-normal text-slate-400">/ {questions.length}</span>
+            {questionIndex + 1}{" "}
+            <span className="font-normal text-slate-400">/ {questions.length}</span>
           </p>
         </div>
         <div className="max-w-2xl mx-auto mt-2">
@@ -57,7 +61,6 @@ export default function Part3() {
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-2xl space-y-4">
-
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-3 h-3 text-indigo-600" />
@@ -68,11 +71,14 @@ export default function Part3() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <p className="text-xl font-semibold text-slate-800 leading-relaxed">{currentQuestion}</p>
+            <p className="text-xl font-semibold text-slate-800 leading-relaxed">
+              {currentQuestion}
+            </p>
             <p className="mt-3 text-sm text-slate-400 flex items-start gap-1.5">
               <span className="text-amber-400 mt-0.5">💡</span>
               <span>
-                Give an extended, well-structured answer. Support your opinion with reasons and examples.
+                Give an extended, well-structured answer. Support your opinion with reasons and
+                examples.
               </span>
             </p>
           </div>
