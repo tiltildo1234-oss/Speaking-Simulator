@@ -3,19 +3,56 @@
     {
       "id": "q1",
       "name": "Q1 – Everyday Life",
-      "topics": [
+      "part1Topics": [
         {
-          "id": "t1-daily-routine",
+          "id": "p1-daily-routine",
           "topic": "Daily Routine",
-          "part1": {
-            "required": "Can you describe your typical daily routine?",
-            "follow_ups": [
-              "What time do you usually wake up in the morning?",
-              "How do you usually spend your evenings after work or study?",
-              "Has your daily routine changed compared to a few years ago?",
-              "Do you prefer following a strict schedule or being more flexible with your time?"
-            ]
-          },
+          "required": "Can you describe your typical daily routine?",
+          "follow_ups": [
+            "What time do you usually wake up in the morning?",
+            "How do you usually spend your evenings after work or study?",
+            "Has your daily routine changed compared to a few years ago?",
+            "Do you prefer following a strict schedule or being more flexible with your time?"
+          ]
+        },
+        {
+          "id": "p1-food",
+          "topic": "Food & Cooking",
+          "required": "Do you enjoy cooking? Why or why not?",
+          "follow_ups": [
+            "How often do you eat out at restaurants or order food in?",
+            "What is your favourite meal of the day and why?",
+            "Are eating habits in your country changing? In what way?",
+            "Do you prefer home-cooked food or restaurant food and why?"
+          ]
+        },
+        {
+          "id": "p1-technology",
+          "topic": "Technology",
+          "required": "How important is technology in your daily life?",
+          "follow_ups": [
+            "How much time do you spend on your phone each day?",
+            "Which apps or websites do you use most often and why?",
+            "Do you think people rely too much on technology in their daily lives?",
+            "How has technology changed the way you communicate with friends and family?"
+          ]
+        },
+        {
+          "id": "p1-leisure",
+          "topic": "Leisure & Hobbies",
+          "required": "What do you enjoy doing in your free time?",
+          "follow_ups": [
+            "Have your hobbies changed since you were a child?",
+            "Do you prefer spending your free time indoors or outdoors? Why?",
+            "How much free time do you have each week?",
+            "Do you think it is important to have hobbies? Why?"
+          ]
+        }
+      ],
+      "part2part3Sets": [
+        {
+          "id": "s1-routine-change",
+          "topic": "Personal Change",
           "part2": {
             "title": "Describe a change you made to your daily routine that had a positive effect on your life.",
             "prompts": [
@@ -30,22 +67,13 @@
               "Why do you think many people struggle to maintain a healthy daily routine?",
               "How has remote working changed the way people structure their day?",
               "Do you think modern lifestyles are becoming too busy? Why?",
-              "Should schools teach children the importance of having a structured routine?"
+              "Should employers do more to support a healthy work-life balance for their staff?"
             ]
           }
         },
         {
-          "id": "t1-food",
-          "topic": "Food & Cooking",
-          "part1": {
-            "required": "Do you enjoy cooking? Why or why not?",
-            "follow_ups": [
-              "How often do you eat out at restaurants or order food in?",
-              "What is your favourite meal of the day and why?",
-              "Are eating habits in your country changing? In what way?",
-              "Do you prefer home-cooked food or restaurant food?"
-            ]
-          },
+          "id": "s1-meal",
+          "topic": "Food & Culture",
           "part2": {
             "title": "Describe a memorable meal you have had.",
             "prompts": [
@@ -65,17 +93,8 @@
           }
         },
         {
-          "id": "t1-technology",
-          "topic": "Technology",
-          "part1": {
-            "required": "How important is technology in your daily life?",
-            "follow_ups": [
-              "How much time do you spend on your phone each day?",
-              "Which apps or websites do you use most often, and why?",
-              "Do you think people rely too much on technology in their daily lives?",
-              "How has technology changed the way people communicate with friends and family?"
-            ]
-          },
+          "id": "s1-technology",
+          "topic": "Technology in Life",
           "part2": {
             "title": "Describe a piece of technology that has had a significant impact on your life.",
             "prompts": [
@@ -99,19 +118,56 @@
     {
       "id": "q2",
       "name": "Q2 – Society & Ideas",
-      "topics": [
+      "part1Topics": [
         {
-          "id": "t2-education",
+          "id": "p2-education",
           "topic": "Education",
-          "part1": {
-            "required": "Are you currently studying or working? Tell me about it.",
-            "follow_ups": [
-              "Did you enjoy school when you were younger?",
-              "What subjects did you find most interesting at school and why?",
-              "Do you think it is important to continue learning after formal education ends?",
-              "How do you prefer to study — alone or with others?"
-            ]
-          },
+          "required": "Are you currently studying or working? Tell me about it.",
+          "follow_ups": [
+            "Did you enjoy school when you were younger?",
+            "What subjects did you find most interesting at school and why?",
+            "Do you think it is important to continue learning after formal education ends?",
+            "How do you prefer to study — alone or with others?"
+          ]
+        },
+        {
+          "id": "p2-environment",
+          "topic": "Environment",
+          "required": "How concerned are you personally about environmental issues?",
+          "follow_ups": [
+            "Do you do anything in your daily life to protect the environment?",
+            "Are environmental issues discussed a lot in your country?",
+            "Have you noticed any changes to the environment where you live?",
+            "Do you think individuals can make a real difference to environmental problems?"
+          ]
+        },
+        {
+          "id": "p2-health",
+          "topic": "Health & Wellbeing",
+          "required": "How important is keeping healthy to you in your daily life?",
+          "follow_ups": [
+            "Do you do any regular exercise? What kind?",
+            "Do you think you have a healthy diet? Why or why not?",
+            "How do you cope with stress in your life?",
+            "Has your attitude to health changed as you have got older?"
+          ]
+        },
+        {
+          "id": "p2-work",
+          "topic": "Work & Career",
+          "required": "What kind of work would you like to do in the future, or what do you do now?",
+          "follow_ups": [
+            "What is the most important thing to you in a job — salary, satisfaction, or something else?",
+            "Would you prefer to work for a company or be self-employed? Why?",
+            "Do you think it is important to have a good relationship with your colleagues?",
+            "How do you feel about working overtime or taking work home?"
+          ]
+        }
+      ],
+      "part2part3Sets": [
+        {
+          "id": "s2-teacher",
+          "topic": "Education & Influence",
           "part2": {
             "title": "Describe a teacher or lecturer who had a great influence on you.",
             "prompts": [
@@ -131,17 +187,8 @@
           }
         },
         {
-          "id": "t2-environment",
-          "topic": "Environment",
-          "part1": {
-            "required": "How concerned are you personally about environmental issues?",
-            "follow_ups": [
-              "Do you do anything in your daily life to protect the environment?",
-              "Are environmental issues discussed a lot in your country?",
-              "Have you noticed any changes to the environment in the area where you live?",
-              "Do you think individuals can make a real difference to environmental problems?"
-            ]
-          },
+          "id": "s2-nature",
+          "topic": "Environment & Nature",
           "part2": {
             "title": "Describe a natural place you have visited that made a strong impression on you.",
             "prompts": [
@@ -153,7 +200,7 @@
           },
           "part3": {
             "questions": [
-              "Who do you think bears the most responsibility for protecting the environment — governments, businesses, or individuals?",
+              "Who bears the most responsibility for protecting the environment — governments, businesses, or individuals?",
               "How effective do you think international agreements on climate change are?",
               "Do you think economic development and environmental protection can go hand in hand?",
               "What lifestyle changes do you think people need to make to tackle climate change?"
@@ -161,17 +208,8 @@
           }
         },
         {
-          "id": "t2-health",
-          "topic": "Health & Wellbeing",
-          "part1": {
-            "required": "How important is keeping healthy to you in your daily life?",
-            "follow_ups": [
-              "Do you do any regular exercise? What kind?",
-              "Do you think you have a healthy diet? Why or why not?",
-              "How do you cope with stress in your life?",
-              "Has your attitude to health changed as you have got older?"
-            ]
-          },
+          "id": "s2-health-habit",
+          "topic": "Health & Habit",
           "part2": {
             "title": "Describe a time when you successfully maintained a healthy habit for a period of time.",
             "prompts": [

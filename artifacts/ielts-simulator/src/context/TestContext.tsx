@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import { Topic, Quarter, shuffleArray } from "@/data/questionsDB";
+import { Part2Part3Set, Quarter, shuffleArray } from "@/data/questionsDB";
 
 export type TestPart = "home" | "part1" | "part2" | "part3" | "results" | "admin";
 
@@ -8,10 +8,16 @@ export interface AnswerRecord {
   audioUrl: string | null;
 }
 
+export interface Part1QuestionMeta {
+  topic: string;
+  isRequired: boolean;
+}
+
 interface TestState {
   currentPart: TestPart;
-  selectedTopic: Topic | null;
   part1Questions: string[];
+  part1Meta: Part1QuestionMeta[];
+  selectedPair: Part2Part3Set | null;
   part1Answers: Record<number, AnswerRecord>;
   part2Answer: AnswerRecord | null;
   part3Answers: Record<number, AnswerRecord>;
@@ -25,24 +31,48 @@ interface TestState {
 
 const TestContext = createContext<TestState | null>(null);
 
-function buildPart1Questions(topic: Topic): string[] {
-  const followUps = shuffleArray(topic.part1.follow_ups).slice(0, 3);
-  return [topic.part1.required, ...followUps];
+function buildPart1(quarter: Quarter): { questions: string[]; meta: Part1QuestionMeta[] } {
+  const questions: string[] = [];
+  const meta: Part1QuestionMeta[] = [];
+
+  const topics = shuffleArray(quarter.part1Topics).slice(0, 3);
+
+  for (const t of topics) {
+    questions.push(t.required);
+    meta.push({ topic: t.topic, isRequired: true });
+
+    const followUps = shuffleArray(t.follow_ups).slice(0, 3);
+    for (const q of followUps) {
+      questions.push(q);
+      meta.push({ topic: t.topic, isRequired: false });
+    }
+  }
+
+  return { questions, meta };
+}
+
+function pickPair(quarter: Quarter): Part2Part3Set | null {
+  if (quarter.part2part3Sets.length === 0) return null;
+  const idx = Math.floor(Math.random() * quarter.part2part3Sets.length);
+  return quarter.part2part3Sets[idx];
 }
 
 export function TestProvider({ children }: { children: ReactNode }) {
   const [currentPart, setCurrentPart] = useState<TestPart>("home");
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [part1Questions, setPart1Questions] = useState<string[]>([]);
+  const [part1Meta, setPart1Meta] = useState<Part1QuestionMeta[]>([]);
+  const [selectedPair, setSelectedPair] = useState<Part2Part3Set | null>(null);
   const [part1Answers, setPart1Answers] = useState<Record<number, AnswerRecord>>({});
   const [part2Answer, setPart2Answer] = useState<AnswerRecord | null>(null);
   const [part3Answers, setPart3Answers] = useState<Record<number, AnswerRecord>>({});
 
   const startTest = useCallback((quarter: Quarter) => {
-    if (quarter.topics.length === 0) return;
-    const topic = quarter.topics[Math.floor(Math.random() * quarter.topics.length)];
-    setSelectedTopic(topic);
-    setPart1Questions(buildPart1Questions(topic));
+    if (quarter.part1Topics.length === 0) return;
+    const { questions, meta } = buildPart1(quarter);
+    const pair = pickPair(quarter);
+    setPart1Questions(questions);
+    setPart1Meta(meta);
+    setSelectedPair(pair);
     setPart1Answers({});
     setPart2Answer(null);
     setPart3Answers({});
@@ -65,8 +95,9 @@ export function TestProvider({ children }: { children: ReactNode }) {
 
   const resetTest = useCallback(() => {
     setCurrentPart("home");
-    setSelectedTopic(null);
     setPart1Questions([]);
+    setPart1Meta([]);
+    setSelectedPair(null);
     setPart1Answers({});
     setPart2Answer(null);
     setPart3Answers({});
@@ -76,8 +107,9 @@ export function TestProvider({ children }: { children: ReactNode }) {
     <TestContext.Provider
       value={{
         currentPart,
-        selectedTopic,
         part1Questions,
+        part1Meta,
+        selectedPair,
         part1Answers,
         part2Answer,
         part3Answers,

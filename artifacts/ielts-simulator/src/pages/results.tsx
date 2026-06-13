@@ -3,7 +3,7 @@ import { CheckCircle2, Volume2, RefreshCw } from "lucide-react";
 import { useTest } from "@/context/TestContext";
 
 export default function Results() {
-  const { part1Questions, part1Answers, part2Answer, part3Answers, selectedTopic, resetTest } =
+  const { part1Questions, part1Meta, part1Answers, part2Answer, part3Answers, selectedPair, resetTest } =
     useTest();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -17,7 +17,7 @@ export default function Results() {
 
   const answeredP1Count = Object.keys(part1Answers).length;
   const answeredP3Count = Object.keys(part3Answers).length;
-  const part3Questions = selectedTopic?.part3.questions ?? [];
+  const part3Questions = selectedPair?.part3.questions ?? [];
 
   return (
     <div className="flex-1 flex flex-col items-center justify-start p-6 overflow-y-auto">
@@ -31,9 +31,6 @@ export default function Results() {
           <h2 className="text-2xl font-bold text-slate-800 mb-1">Test Complete!</h2>
           <p className="text-slate-500 text-sm">
             You completed all three parts of the IELTS Speaking Test.
-            {selectedTopic && (
-              <span className="font-medium text-slate-600"> Topic: {selectedTopic.topic}</span>
-            )}
           </p>
           <div className="grid grid-cols-3 gap-3 mt-6">
             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center">
@@ -54,30 +51,33 @@ export default function Results() {
         {/* Part 1 */}
         <Section label="Part 1" sub="General Questions">
           <div className="space-y-3">
-            {part1Questions.map((q, i) => (
-              <AnswerRow
-                key={i}
-                topic={i === 0 ? "Required" : `Follow-up ${i}`}
-                question={q}
-                audioUrl={part1Answers[i]?.audioUrl ?? null}
-                onPlay={playAudio}
-              />
-            ))}
+            {part1Questions.map((q, i) => {
+              const meta = part1Meta[i];
+              return (
+                <AnswerRow
+                  key={i}
+                  topic={meta ? `${meta.topic} — ${meta.isRequired ? "Required" : "Follow-up"}` : `Q${i + 1}`}
+                  question={q}
+                  audioUrl={part1Answers[i]?.audioUrl ?? null}
+                  onPlay={playAudio}
+                />
+              );
+            })}
           </div>
         </Section>
 
         {/* Part 2 */}
-        {selectedTopic && (
+        {selectedPair && (
           <Section label="Part 2" sub="Cue Card">
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-3">
               <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">
-                Cue Card Topic
+                Topic
               </p>
-              <p className="text-sm font-semibold text-indigo-900">{selectedTopic.part2.title}</p>
+              <p className="text-sm font-semibold text-indigo-900">{selectedPair.part2.title}</p>
             </div>
             <AnswerRow
               topic="Long Turn"
-              question={selectedTopic.part2.title}
+              question={selectedPair.part2.title}
               audioUrl={part2Answer?.audioUrl ?? null}
               onPlay={playAudio}
               hideQuestion
@@ -86,19 +86,21 @@ export default function Results() {
         )}
 
         {/* Part 3 */}
-        <Section label="Part 3" sub="Discussion">
-          <div className="space-y-3">
-            {part3Questions.map((q, i) => (
-              <AnswerRow
-                key={i}
-                topic={`Q${i + 1}`}
-                question={q}
-                audioUrl={part3Answers[i]?.audioUrl ?? null}
-                onPlay={playAudio}
-              />
-            ))}
-          </div>
-        </Section>
+        {selectedPair && (
+          <Section label="Part 3" sub={`Discussion — ${selectedPair.topic}`}>
+            <div className="space-y-3">
+              {part3Questions.map((q, i) => (
+                <AnswerRow
+                  key={i}
+                  topic={`Q${i + 1}`}
+                  question={q}
+                  audioUrl={part3Answers[i]?.audioUrl ?? null}
+                  onPlay={playAudio}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
 
         <button
           onClick={resetTest}
@@ -139,7 +141,7 @@ function AnswerRow({
 }) {
   return (
     <div className="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0">
-      <span className="shrink-0 text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded mt-0.5">
+      <span className="shrink-0 text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded mt-0.5 leading-tight max-w-[140px] text-left">
         {topic}
       </span>
       <div className="flex-1 min-w-0">

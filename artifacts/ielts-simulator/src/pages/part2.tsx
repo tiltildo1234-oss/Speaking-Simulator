@@ -8,12 +8,12 @@ import Timer from "@/components/Timer";
 type Phase = "intro" | "prep" | "speak";
 
 export default function Part2() {
-  const { selectedTopic, goToPart, savePart2Answer } = useTest();
+  const { selectedPair, goToPart, savePart2Answer } = useTest();
   const [phase, setPhase] = useState<Phase>("intro");
   const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
-  const part2 = selectedTopic?.part2;
+  const part2 = selectedPair?.part2;
 
   function handleStartPrep() {
     setPhase("prep");

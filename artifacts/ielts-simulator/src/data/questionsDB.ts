@@ -1,29 +1,27 @@
-export interface Part1Data {
+export interface Part1Topic {
+  id: string;
+  topic: string;
   required: string;
   follow_ups: string[];
 }
 
-export interface Part2Data {
-  title: string;
-  prompts: string[];
-}
-
-export interface Part3Data {
-  questions: string[];
-}
-
-export interface Topic {
+export interface Part2Part3Set {
   id: string;
   topic: string;
-  part1: Part1Data;
-  part2: Part2Data;
-  part3: Part3Data;
+  part2: {
+    title: string;
+    prompts: string[];
+  };
+  part3: {
+    questions: string[];
+  };
 }
 
 export interface Quarter {
   id: string;
   name: string;
-  topics: Topic[];
+  part1Topics: Part1Topic[];
+  part2part3Sets: Part2Part3Set[];
 }
 
 export interface QDB {

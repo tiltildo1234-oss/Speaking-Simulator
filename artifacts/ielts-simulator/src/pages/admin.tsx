@@ -1,25 +1,27 @@
 import { useState } from "react";
 import { Plus, Trash2, ChevronDown, ChevronUp, Save, X } from "lucide-react";
 import { useQDB } from "@/context/QuestionDBContext";
-import { QDB, Quarter, Topic, randomId } from "@/data/questionsDB";
+import { QDB, Quarter, Part1Topic, Part2Part3Set, randomId } from "@/data/questionsDB";
 
-type ActiveTab = "part1" | "part2" | "part3";
+function emptyPart1Topic(): Part1Topic {
+  return { id: randomId(), topic: "", required: "", follow_ups: [""] };
+}
 
-function emptyTopic(): Topic {
+function emptyPart2Part3Set(): Part2Part3Set {
   return {
     id: randomId(),
     topic: "",
-    part1: { required: "", follow_ups: [""] },
     part2: { title: "", prompts: [""] },
     part3: { questions: [""] },
   };
 }
 
 function emptyQuarter(): Quarter {
-  return { id: randomId(), name: "", topics: [] };
+  return { id: randomId(), name: "", part1Topics: [], part2part3Sets: [] };
 }
 
-/* ── Textarea that auto-grows ── */
+/* ─── Shared UI atoms ─── */
+
 function AutoTextarea({
   value,
   onChange,
@@ -42,7 +44,6 @@ function AutoTextarea({
   );
 }
 
-/* ── String list editor (follow_ups, prompts, questions) ── */
 function ListEditor({
   items,
   onChange,
@@ -62,31 +63,21 @@ function ListEditor({
   function remove(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
-  function add() {
-    onChange([...items, ""]);
-  }
-
   return (
     <div className="space-y-2">
       {items.map((item, i) => (
         <div key={i} className="flex gap-2">
-          <AutoTextarea
-            value={item}
-            onChange={(v) => update(i, v)}
-            placeholder={placeholder}
-            className="flex-1"
-          />
+          <AutoTextarea value={item} onChange={(v) => update(i, v)} placeholder={placeholder} className="flex-1" />
           <button
             onClick={() => remove(i)}
             className="shrink-0 mt-1 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-            title="Remove"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       ))}
       <button
-        onClick={add}
+        onClick={() => onChange([...items, ""])}
         className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
       >
         <Plus className="w-3.5 h-3.5" /> {addLabel}
@@ -95,182 +86,68 @@ function ListEditor({
   );
 }
 
-/* ── Topic editor card ── */
-function TopicCard({
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{children}</p>
+  );
+}
+
+/* ─── Part 1 Topic card ─── */
+
+function Part1TopicCard({
   topic,
   onSave,
   onDelete,
 }: {
-  topic: Topic;
-  onSave: (t: Topic) => void;
+  topic: Part1Topic;
+  onSave: (t: Part1Topic) => void;
   onDelete: () => void;
 }) {
-  const [draft, setDraft] = useState<Topic>({ ...topic, part1: { ...topic.part1, follow_ups: [...topic.part1.follow_ups] }, part2: { ...topic.part2, prompts: [...topic.part2.prompts] }, part3: { ...topic.part3, questions: [...topic.part3.questions] } });
+  const [draft, setDraft] = useState<Part1Topic>({ ...topic, follow_ups: [...topic.follow_ups] });
   const [expanded, setExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("part1");
   const [dirty, setDirty] = useState(false);
 
-  function patch(fn: (d: Topic) => Topic) {
+  function patch(fn: (d: Part1Topic) => Part1Topic) {
     setDraft((d) => fn(d));
     setDirty(true);
   }
 
-  function handleSave() {
-    onSave(draft);
-    setDirty(false);
-  }
-
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-3 bg-white px-4 py-3">
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="flex-1 flex items-center gap-2 text-left"
-        >
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-          )}
+        <button onClick={() => setExpanded((e) => !e)} className="flex-1 flex items-center gap-2 text-left">
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
           <span className="text-sm font-semibold text-slate-700 truncate">
-            {draft.topic || <span className="text-slate-400 italic">Unnamed topic</span>}
+            {draft.topic || <span className="text-slate-400 italic font-normal">Unnamed topic</span>}
           </span>
         </button>
         {dirty && (
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-medium transition-colors"
-          >
+          <button onClick={() => { onSave(draft); setDirty(false); }} className="flex items-center gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-medium transition-colors">
             <Save className="w-3 h-3" /> Save
           </button>
         )}
-        <button
-          onClick={onDelete}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-          title="Delete topic"
-        >
+        <button onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
-          {/* Topic name */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-              Topic Name
-            </label>
-            <input
-              type="text"
-              value={draft.topic}
-              onChange={(e) => patch((d) => ({ ...d, topic: e.target.value }))}
-              placeholder="e.g. Daily Routine"
-              className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
-            />
+            <SectionLabel>Topic Name</SectionLabel>
+            <input type="text" value={draft.topic} onChange={(e) => patch((d) => ({ ...d, topic: e.target.value }))} placeholder="e.g. Daily Routine"
+              className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
           </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 bg-slate-200 p-1 rounded-xl w-fit">
-            {(["part1", "part2", "part3"] as ActiveTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  activeTab === tab
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {tab === "part1" ? "Part 1" : tab === "part2" ? "Part 2" : "Part 3"}
-              </button>
-            ))}
+          <div>
+            <SectionLabel>Required Question</SectionLabel>
+            <AutoTextarea value={draft.required} onChange={(v) => patch((d) => ({ ...d, required: v }))} placeholder="The main opening question…" />
           </div>
-
-          {/* Part 1 */}
-          {activeTab === "part1" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                  Required Question
-                </label>
-                <AutoTextarea
-                  value={draft.part1.required}
-                  onChange={(v) =>
-                    patch((d) => ({ ...d, part1: { ...d.part1, required: v } }))
-                  }
-                  placeholder="The opening question the examiner always asks…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  Follow-up Questions
-                </label>
-                <ListEditor
-                  items={draft.part1.follow_ups}
-                  onChange={(items) =>
-                    patch((d) => ({ ...d, part1: { ...d.part1, follow_ups: items } }))
-                  }
-                  placeholder="Follow-up question…"
-                  addLabel="Add follow-up"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Part 2 */}
-          {activeTab === "part2" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                  Cue Card Title
-                </label>
-                <AutoTextarea
-                  value={draft.part2.title}
-                  onChange={(v) =>
-                    patch((d) => ({ ...d, part2: { ...d.part2, title: v } }))
-                  }
-                  placeholder="Describe a … that …"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  Prompts (You should say…)
-                </label>
-                <ListEditor
-                  items={draft.part2.prompts}
-                  onChange={(items) =>
-                    patch((d) => ({ ...d, part2: { ...d.part2, prompts: items } }))
-                  }
-                  placeholder="Prompt point…"
-                  addLabel="Add prompt"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Part 3 */}
-          {activeTab === "part3" && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                Discussion Questions
-              </label>
-              <ListEditor
-                items={draft.part3.questions}
-                onChange={(items) =>
-                  patch((d) => ({ ...d, part3: { questions: items } }))
-                }
-                placeholder="Discussion question…"
-                addLabel="Add question"
-              />
-            </div>
-          )}
-
+          <div>
+            <SectionLabel>Follow-up Questions</SectionLabel>
+            <ListEditor items={draft.follow_ups} onChange={(items) => patch((d) => ({ ...d, follow_ups: items }))} placeholder="Follow-up question…" addLabel="Add follow-up" />
+          </div>
           {dirty && (
-            <button
-              onClick={handleSave}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-colors"
-            >
+            <button onClick={() => { onSave(draft); setDirty(false); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-colors">
               <Save className="w-3.5 h-3.5" /> Save Changes
             </button>
           )}
@@ -280,18 +157,116 @@ function TopicCard({
   );
 }
 
-/* ── Main Admin Page ── */
+/* ─── Part 2+3 Set card ─── */
+
+type SetTab = "part2" | "part3";
+
+function Part2Part3Card({
+  set,
+  onSave,
+  onDelete,
+}: {
+  set: Part2Part3Set;
+  onSave: (s: Part2Part3Set) => void;
+  onDelete: () => void;
+}) {
+  const [draft, setDraft] = useState<Part2Part3Set>({
+    ...set,
+    part2: { ...set.part2, prompts: [...set.part2.prompts] },
+    part3: { questions: [...set.part3.questions] },
+  });
+  const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<SetTab>("part2");
+  const [dirty, setDirty] = useState(false);
+
+  function patch(fn: (d: Part2Part3Set) => Part2Part3Set) {
+    setDraft((d) => fn(d));
+    setDirty(true);
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-3 bg-white px-4 py-3">
+        <button onClick={() => setExpanded((e) => !e)} className="flex-1 flex items-center gap-2 text-left">
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-slate-700 truncate block">
+              {draft.topic || <span className="text-slate-400 italic font-normal">Unnamed set</span>}
+            </span>
+            <span className="text-[10px] text-slate-400">Part 2 + Part 3 paired</span>
+          </div>
+        </button>
+        {dirty && (
+          <button onClick={() => { onSave(draft); setDirty(false); }} className="flex items-center gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-medium transition-colors">
+            <Save className="w-3 h-3" /> Save
+          </button>
+        )}
+        <button onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
+          <div>
+            <SectionLabel>Topic / Theme Label</SectionLabel>
+            <input type="text" value={draft.topic} onChange={(e) => patch((d) => ({ ...d, topic: e.target.value }))} placeholder="e.g. Technology in Life"
+              className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <div className="flex gap-1 bg-slate-200 p-1 rounded-xl w-fit">
+            {(["part2", "part3"] as SetTab[]).map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activeTab === tab ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+                {tab === "part2" ? "Part 2 — Cue Card" : "Part 3 — Discussion"}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "part2" && (
+            <div className="space-y-4">
+              <div>
+                <SectionLabel>Cue Card Title</SectionLabel>
+                <AutoTextarea value={draft.part2.title} onChange={(v) => patch((d) => ({ ...d, part2: { ...d.part2, title: v } }))} placeholder="Describe a … that …" />
+              </div>
+              <div>
+                <SectionLabel>Prompts (You should say…)</SectionLabel>
+                <ListEditor items={draft.part2.prompts} onChange={(items) => patch((d) => ({ ...d, part2: { ...d.part2, prompts: items } }))} placeholder="Prompt point…" addLabel="Add prompt" />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "part3" && (
+            <div>
+              <SectionLabel>Discussion Questions</SectionLabel>
+              <ListEditor items={draft.part3.questions} onChange={(items) => patch((d) => ({ ...d, part3: { questions: items } }))} placeholder="Discussion question…" addLabel="Add question" />
+            </div>
+          )}
+
+          {dirty && (
+            <button onClick={() => { onSave(draft); setDirty(false); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-colors">
+              <Save className="w-3.5 h-3.5" /> Save Changes
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Admin Page ─── */
+
+type AdminSection = "part1" | "sets";
+
 export default function Admin() {
   const { db, saveDB } = useQDB();
-  const [selectedQuarterId, setSelectedQuarterId] = useState<string>(
-    db.quarters[0]?.id ?? ""
-  );
+  const [selectedQuarterId, setSelectedQuarterId] = useState<string>(db.quarters[0]?.id ?? "");
   const [addingQuarter, setAddingQuarter] = useState(false);
   const [newQuarterName, setNewQuarterName] = useState("");
+  const [activeSection, setActiveSection] = useState<AdminSection>("part1");
 
   const selectedQuarter = db.quarters.find((q) => q.id === selectedQuarterId) ?? null;
 
-  /* helpers that mutate the whole DB and save */
   function updateDB(updatedDB: QDB) {
     saveDB(updatedDB);
   }
@@ -316,38 +291,40 @@ export default function Admin() {
     setSelectedQuarterId(next.quarters[0]?.id ?? "");
   }
 
-  function addTopic() {
+  /* Part 1 topic actions */
+  function addPart1Topic() {
     if (!selectedQuarter) return;
-    const t = emptyTopic();
-    replaceQuarter({ ...selectedQuarter, topics: [...selectedQuarter.topics, t] });
+    replaceQuarter({ ...selectedQuarter, part1Topics: [...selectedQuarter.part1Topics, emptyPart1Topic()] });
+  }
+  function savePart1Topic(updated: Part1Topic) {
+    if (!selectedQuarter) return;
+    replaceQuarter({ ...selectedQuarter, part1Topics: selectedQuarter.part1Topics.map((t) => (t.id === updated.id ? updated : t)) });
+  }
+  function deletePart1Topic(id: string) {
+    if (!selectedQuarter) return;
+    replaceQuarter({ ...selectedQuarter, part1Topics: selectedQuarter.part1Topics.filter((t) => t.id !== id) });
   }
 
-  function saveTopic(updated: Topic) {
+  /* Part 2+3 set actions */
+  function addSet() {
     if (!selectedQuarter) return;
-    replaceQuarter({
-      ...selectedQuarter,
-      topics: selectedQuarter.topics.map((t) => (t.id === updated.id ? updated : t)),
-    });
+    replaceQuarter({ ...selectedQuarter, part2part3Sets: [...selectedQuarter.part2part3Sets, emptyPart2Part3Set()] });
   }
-
-  function deleteTopic(id: string) {
+  function saveSet(updated: Part2Part3Set) {
     if (!selectedQuarter) return;
-    replaceQuarter({
-      ...selectedQuarter,
-      topics: selectedQuarter.topics.filter((t) => t.id !== id),
-    });
+    replaceQuarter({ ...selectedQuarter, part2part3Sets: selectedQuarter.part2part3Sets.map((s) => (s.id === updated.id ? updated : s)) });
+  }
+  function deleteSet(id: string) {
+    if (!selectedQuarter) return;
+    replaceQuarter({ ...selectedQuarter, part2part3Sets: selectedQuarter.part2part3Sets.filter((s) => s.id !== id) });
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="bg-white border-b border-slate-200 px-6 py-3">
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
-            Question Kit Manager
-          </p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            All changes are saved automatically and persist across sessions.
-          </p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">Question Kit Manager</p>
+          <p className="text-xs text-slate-500 mt-0.5">All changes save automatically and persist across sessions.</p>
         </div>
       </div>
 
@@ -358,116 +335,102 @@ export default function Admin() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Quarters</p>
-              <button
-                onClick={() => setAddingQuarter(true)}
-                className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-              >
+              <button onClick={() => setAddingQuarter(true)} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
                 <Plus className="w-3.5 h-3.5" /> Add Quarter
               </button>
             </div>
 
-            {/* Quarter buttons */}
             <div className="flex flex-wrap gap-2">
               {db.quarters.map((q) => (
                 <div key={q.id} className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => setSelectedQuarterId(q.id)}
-                    className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                      selectedQuarterId === q.id
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
+                  <button onClick={() => setSelectedQuarterId(q.id)}
+                    className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-colors ${selectedQuarterId === q.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
                     {q.name || "Unnamed"}
                   </button>
-                  <button
-                    onClick={() => deleteQuarter(q.id)}
-                    className="w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-red-400 transition-colors ml-0.5"
-                    title="Delete quarter"
-                  >
+                  <button onClick={() => deleteQuarter(q.id)} className="w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-red-400 transition-colors ml-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
-              {db.quarters.length === 0 && (
-                <p className="text-sm text-slate-400 italic">No quarters yet.</p>
-              )}
+              {db.quarters.length === 0 && <p className="text-sm text-slate-400 italic">No quarters yet.</p>}
             </div>
 
-            {/* Add quarter inline form */}
             {addingQuarter && (
               <div className="mt-4 flex gap-2">
-                <input
-                  autoFocus
-                  type="text"
-                  value={newQuarterName}
-                  onChange={(e) => setNewQuarterName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addQuarter();
-                    if (e.key === "Escape") { setAddingQuarter(false); setNewQuarterName(""); }
-                  }}
+                <input autoFocus type="text" value={newQuarterName} onChange={(e) => setNewQuarterName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addQuarter(); if (e.key === "Escape") { setAddingQuarter(false); setNewQuarterName(""); } }}
                   placeholder='e.g. "Q3 – Work & Leisure"'
-                  className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                />
-                <button
-                  onClick={addQuarter}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors"
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => { setAddingQuarter(false); setNewQuarterName(""); }}
-                  className="px-3 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-xl text-sm transition-colors"
-                >
-                  Cancel
-                </button>
+                  className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                <button onClick={addQuarter} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors">Add</button>
+                <button onClick={() => { setAddingQuarter(false); setNewQuarterName(""); }} className="px-3 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-xl text-sm transition-colors">Cancel</button>
               </div>
             )}
           </div>
 
-          {/* Topics for selected quarter */}
-          {selectedQuarter ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{selectedQuarter.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {selectedQuarter.topics.length} topic
-                    {selectedQuarter.topics.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-                <button
-                  onClick={addTopic}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-semibold transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Topic
+          {selectedQuarter && (
+            <>
+              {/* Section switcher */}
+              <div className="flex gap-2">
+                <button onClick={() => setActiveSection("part1")}
+                  className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors border ${activeSection === "part1" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/50"}`}>
+                  Part 1 Topics
+                  <span className="ml-2 text-xs font-normal opacity-70">({selectedQuarter.part1Topics.length})</span>
+                </button>
+                <button onClick={() => setActiveSection("sets")}
+                  className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-colors border ${activeSection === "sets" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/50"}`}>
+                  Part 2 + 3 Sets
+                  <span className="ml-2 text-xs font-normal opacity-70">({selectedQuarter.part2part3Sets.length})</span>
                 </button>
               </div>
 
-              {selectedQuarter.topics.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">
-                  <p className="text-sm">No topics yet.</p>
-                  <p className="text-xs mt-1">Click "Add Topic" to get started.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedQuarter.topics.map((topic) => (
-                    <TopicCard
-                      key={topic.id}
-                      topic={topic}
-                      onSave={saveTopic}
-                      onDelete={() => deleteTopic(topic.id)}
-                    />
-                  ))}
+              {/* Part 1 topics */}
+              {activeSection === "part1" && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Part 1 Topics</p>
+                      <p className="text-xs text-slate-400 mt-0.5">3 topics are randomly selected per test session. Each topic: 1 required + 3 random follow-ups.</p>
+                    </div>
+                    <button onClick={addPart1Topic} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-semibold transition-colors shrink-0 ml-4">
+                      <Plus className="w-3.5 h-3.5" /> Add Topic
+                    </button>
+                  </div>
+                  {selectedQuarter.part1Topics.length === 0 ? (
+                    <p className="text-center text-sm text-slate-400 italic py-6">No topics yet — click "Add Topic" to start.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedQuarter.part1Topics.map((t) => (
+                        <Part1TopicCard key={t.id} topic={t} onSave={savePart1Topic} onDelete={() => deletePart1Topic(t.id)} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          ) : (
-            db.quarters.length > 0 && (
-              <p className="text-center text-sm text-slate-400 italic">
-                Select a quarter above to manage its topics.
-              </p>
-            )
+
+              {/* Part 2+3 sets */}
+              {activeSection === "sets" && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Part 2 + Part 3 Sets</p>
+                      <p className="text-xs text-slate-400 mt-0.5">One set is randomly selected per test. Part 2 cue card and Part 3 discussion always come from the same set.</p>
+                    </div>
+                    <button onClick={addSet} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-semibold transition-colors shrink-0 ml-4">
+                      <Plus className="w-3.5 h-3.5" /> Add Set
+                    </button>
+                  </div>
+                  {selectedQuarter.part2part3Sets.length === 0 ? (
+                    <p className="text-center text-sm text-slate-400 italic py-6">No sets yet — click "Add Set" to start.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedQuarter.part2part3Sets.map((s) => (
+                        <Part2Part3Card key={s.id} set={s} onSave={saveSet} onDelete={() => deleteSet(s.id)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

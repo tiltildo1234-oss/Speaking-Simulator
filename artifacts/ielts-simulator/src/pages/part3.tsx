@@ -5,12 +5,12 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import RecordingPanel from "@/components/RecordingPanel";
 
 export default function Part3() {
-  const { selectedTopic, goToPart, savePart3Answer } = useTest();
+  const { selectedPair, goToPart, savePart3Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
   const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
-  const questions = selectedTopic?.part3.questions ?? [];
+  const questions = selectedPair?.part3.questions ?? [];
   const currentQuestion = questions[questionIndex] ?? "";
   const progress = questions.length > 0 ? ((questionIndex + 1) / questions.length) * 100 : 0;
   const isLast = questionIndex === questions.length - 1;
@@ -40,8 +40,8 @@ export default function Part3() {
             <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
               Part 3 — Discussion
             </p>
-            {selectedTopic && (
-              <p className="text-xs text-slate-500 mt-0.5">Related to: {selectedTopic.topic}</p>
+            {selectedPair && (
+              <p className="text-xs text-slate-500 mt-0.5">Theme: {selectedPair.topic}</p>
             )}
           </div>
           <p className="text-sm font-bold text-slate-700">

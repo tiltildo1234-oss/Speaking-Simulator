@@ -5,15 +5,15 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import RecordingPanel from "@/components/RecordingPanel";
 
 export default function Part1() {
-  const { part1Questions, selectedTopic, goToPart, savePart1Answer } = useTest();
+  const { part1Questions, part1Meta, goToPart, savePart1Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
   const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
   const currentQuestion = part1Questions[questionIndex] ?? "";
+  const currentMeta = part1Meta[questionIndex];
   const progress = part1Questions.length > 0 ? ((questionIndex + 1) / part1Questions.length) * 100 : 0;
   const isLast = questionIndex === part1Questions.length - 1;
-  const isRequired = questionIndex === 0;
 
   useEffect(() => {
     resetRecording();
@@ -40,8 +40,8 @@ export default function Part1() {
             <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
               Part 1 — General Questions
             </p>
-            {selectedTopic && (
-              <p className="text-xs text-slate-500 mt-0.5">Topic: {selectedTopic.topic}</p>
+            {currentMeta && (
+              <p className="text-xs text-slate-500 mt-0.5">Topic: {currentMeta.topic}</p>
             )}
           </div>
           <p className="text-sm font-bold text-slate-700">
@@ -62,7 +62,7 @@ export default function Part1() {
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-2xl space-y-4">
           <span className="inline-block text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
-            {isRequired ? "Required" : "Follow-up"}
+            {currentMeta?.isRequired ? "Required" : "Follow-up"}
           </span>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -70,7 +70,7 @@ export default function Part1() {
             <p className="mt-3 text-sm text-slate-400 flex items-start gap-1.5">
               <span className="text-amber-400 mt-0.5">💡</span>
               <span>
-                {isRequired
+                {currentMeta?.isRequired
                   ? "Give a full, natural answer. Aim for 4–6 sentences."
                   : "Extend your answer with details, examples, or personal experience."}
               </span>

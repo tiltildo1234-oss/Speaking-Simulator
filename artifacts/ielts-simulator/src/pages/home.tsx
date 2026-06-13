@@ -9,7 +9,7 @@ export default function Home() {
   const [selectedQuarterId, setSelectedQuarterId] = useState<string>("");
 
   const selectedQuarter = db.quarters.find((q) => q.id === selectedQuarterId) ?? null;
-  const canStart = selectedQuarter !== null && selectedQuarter.topics.length > 0;
+  const canStart = selectedQuarter !== null && selectedQuarter.part1Topics.length > 0;
 
   function handleStart() {
     if (!selectedQuarter) return;
