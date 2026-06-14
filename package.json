@@ -2,10 +2,12 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.6.0",
   "scripts": {
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "dev": "PORT=5173 npx pnpm --filter @workspace/ielts-simulator run dev",
+    "build": "npx pnpm run typecheck && npx pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "npx pnpm run typecheck:libs && npx pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "devDependencies": {
