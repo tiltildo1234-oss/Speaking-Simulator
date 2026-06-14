@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
 const router: IRouter = Router();
-const DB_PATH = resolve(process.cwd(), "questionsDB.json");
+const DB_PATH = resolve(__dirname, "../questionsDB.json");
 
 function readDB(): unknown {
   if (!existsSync(DB_PATH)) {
