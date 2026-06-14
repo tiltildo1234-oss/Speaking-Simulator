@@ -4,8 +4,8 @@
   "license": "MIT",
   "packageManager": "pnpm@11.6.0",
   "scripts": {
-    "dev": "PORT=5173 npx pnpm --filter @workspace/ielts-simulator run dev",
-    "build": "npx pnpm run typecheck && npx pnpm -r --if-present run build",
+    "dev": "cd artifacts/ielts-simulator && npm install && npm run dev",
+    "build": "cd artifacts/ielts-simulator && npm install && npm run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "npx pnpm run typecheck:libs && npx pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
