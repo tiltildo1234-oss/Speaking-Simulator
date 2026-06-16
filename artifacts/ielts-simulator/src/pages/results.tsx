@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CircleCheck as CheckCircle2, Volume2, RefreshCw, BrainCircuit, ChartBar as BarChart3, Loader as Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { CircleCheck as CheckCircle2, Volume2, RefreshCw, BrainCircuit, ChartBar as BarChart3, Loader as Loader2, ChevronDown, ChevronUp, ThumbsUp, TriangleAlert as AlertTriangle, Lightbulb } from "lucide-react";
 import { useTest } from "@/context/TestContext";
 import type { AnalysisResult, ScoreResult } from "@/types/ai";
 
@@ -50,44 +50,83 @@ export default function Results() {
       else if (partNumber === 2) updatePart2Answer(updated);
       else if (partNumber === 3 && index !== undefined) updatePart3Answer(index, updated);
     } catch {
-      // Silently fail for mock
+      // Silently fail
     } finally {
       setAnalyzingKey(null);
     }
   }
 
   async function handleScore() {
-    const allAnalyses: AnalysisResult[] = [];
-    const analysisIds: string[] = [];
+    // Collect all transcripts with their part numbers and questions
+    const entries: Array<{ transcript: string; question?: string; speakingPart: 1 | 2 | 3 }> = [];
 
-    for (const ans of Object.values(part1Answers)) {
-      if (ans.analysis) { allAnalyses.push(ans.analysis); analysisIds.push(ans.analysis.id); }
+    for (const [idx, ans] of Object.entries(part1Answers)) {
+      if (ans.transcript) {
+        entries.push({
+          transcript: ans.transcript,
+          question: part1Questions[Number(idx)],
+          speakingPart: 1,
+        });
+      }
     }
-    if (part2Answer?.analysis) { allAnalyses.push(part2Answer.analysis); analysisIds.push(part2Answer.analysis.id); }
-    for (const ans of Object.values(part3Answers)) {
-      if (ans.analysis) { allAnalyses.push(ans.analysis); analysisIds.push(ans.analysis.id); }
+    if (part2Answer?.transcript) {
+      entries.push({
+        transcript: part2Answer.transcript,
+        question: selectedPair?.part2.title,
+        speakingPart: 2,
+      });
     }
-    if (allAnalyses.length === 0) return;
+    for (const [idx, ans] of Object.entries(part3Answers)) {
+      if (ans.transcript) {
+        entries.push({
+          transcript: ans.transcript,
+          question: part3Questions[Number(idx)],
+          speakingPart: 3,
+        });
+      }
+    }
+    if (entries.length === 0) return;
 
     setScoring(true);
     try {
-      const res = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          analysisIds,
-          analyses: allAnalyses.map((a) => ({
-            vocabularyScore: a.vocabularyScore,
-            coherenceScore: a.coherenceScore,
-            grammarScore: a.grammarScore,
-          })),
-        }),
+      // Score each transcript individually then average
+      const results: ScoreResult[] = [];
+      for (const entry of entries) {
+        const res = await fetch("/api/score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(entry),
+        });
+        if (!res.ok) throw new Error();
+        results.push(await res.json());
+      }
+
+      // Aggregate into a single overall score
+      const avgBand = results.reduce((s, r) => s + r.overallBand, 0) / results.length;
+      const avgBreakdown = {
+        fluency: roundHalf(results.reduce((s, r) => s + r.breakdown.fluency, 0) / results.length),
+        grammar: roundHalf(results.reduce((s, r) => s + r.breakdown.grammar, 0) / results.length),
+        vocabulary: roundHalf(results.reduce((s, r) => s + r.breakdown.vocabulary, 0) / results.length),
+        pronunciation: roundHalf(results.reduce((s, r) => s + r.breakdown.pronunciation, 0) / results.length),
+        coherence: roundHalf(results.reduce((s, r) => s + r.breakdown.coherence, 0) / results.length),
+      };
+
+      // Merge strengths/weaknesses/suggestions, deduplicating
+      const strengths = [...new Set(results.flatMap((r) => r.strengths))];
+      const weaknesses = [...new Set(results.flatMap((r) => r.weaknesses))];
+      const suggestions = [...new Set(results.flatMap((r) => r.suggestions))];
+
+      setScoreResult({
+        id: results[0].id,
+        overallBand: roundHalf(avgBand),
+        breakdown: avgBreakdown,
+        strengths,
+        weaknesses,
+        suggestions,
+        analysisIds: results.flatMap((r) => r.analysisIds),
       });
-      if (!res.ok) throw new Error();
-      const result: ScoreResult = await res.json();
-      setScoreResult(result);
     } catch {
-      // Silently fail for mock
+      // Silently fail
     } finally {
       setScoring(false);
     }
@@ -137,12 +176,61 @@ export default function Results() {
               </div>
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <ScorePill label="Fluency" value={scoreResult.breakdown.fluency} />
-                <ScorePill label="Lexical" value={scoreResult.breakdown.lexicalResource} />
-                <ScorePill label="Grammar" value={scoreResult.breakdown.grammaticalRange} />
+                <ScorePill label="Grammar" value={scoreResult.breakdown.grammar} />
+                <ScorePill label="Vocabulary" value={scoreResult.breakdown.vocabulary} />
                 <ScorePill label="Pronunciation" value={scoreResult.breakdown.pronunciation} />
+                <ScorePill label="Coherence" value={scoreResult.breakdown.coherence} />
+                <div />
               </div>
             </div>
-            <p className="text-sm text-slate-600">{scoreResult.summary}</p>
+
+            {scoreResult.strengths.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <ThumbsUp className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-xs font-semibold text-emerald-700">Strengths</span>
+                </div>
+                <ul className="space-y-1">
+                  {scoreResult.strengths.map((s, i) => (
+                    <li key={i} className="text-xs text-slate-600 pl-5 relative before:content-[''] before:absolute before:left-1.5 before:top-1.5 before:w-1 before:h-1 before:bg-emerald-400 before:rounded-full">
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {scoreResult.weaknesses.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-xs font-semibold text-amber-700">Weaknesses</span>
+                </div>
+                <ul className="space-y-1">
+                  {scoreResult.weaknesses.map((w, i) => (
+                    <li key={i} className="text-xs text-slate-600 pl-5 relative before:content-[''] before:absolute before:left-1.5 before:top-1.5 before:w-1 before:h-1 before:bg-amber-400 before:rounded-full">
+                      {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {scoreResult.suggestions.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-xs font-semibold text-blue-700">Suggestions</span>
+                </div>
+                <ul className="space-y-1">
+                  {scoreResult.suggestions.map((s, i) => (
+                    <li key={i} className="text-xs text-slate-600 pl-5 relative before:content-[''] before:absolute before:left-1.5 before:top-1.5 before:w-1 before:h-1 before:bg-blue-400 before:rounded-full">
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -233,6 +321,10 @@ export default function Results() {
   );
 }
 
+function roundHalf(n: number): number {
+  return Math.round(n * 2) / 2;
+}
+
 function ScorePill({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-slate-50 rounded-lg px-3 py-1.5 flex items-center justify-between">
@@ -319,7 +411,6 @@ function AnswerRow({
         </div>
       </div>
 
-      {/* Analysis section */}
       {hasAnalysis && (
         <div className="mt-2 ml-[calc(140px+12px)]">
           <button

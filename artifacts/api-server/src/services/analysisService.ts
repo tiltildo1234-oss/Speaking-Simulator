@@ -1,3 +1,5 @@
+import { scoreTranscript } from "./scoringEngine";
+
 function randomId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -27,55 +29,71 @@ export interface AnalyzeOutput {
   feedback: string;
 }
 
-const MOCK_ISSUES: AnalysisIssue[] = [
-  {
-    type: "grammar",
-    description: "Subject-verb agreement error",
-    suggestion: 'Use "has" instead of "have" with singular subjects',
-  },
-  {
-    type: "vocabulary",
-    description: "Repetitive word choice",
-    suggestion: 'Try using synonyms like "significant", "substantial", or "considerable" instead of "very big"',
-  },
-  {
-    type: "coherence",
-    description: "Missing transition between ideas",
-    suggestion: 'Add connectors like "Furthermore" or "On the other hand" to link your points',
-  },
-  {
-    type: "pronunciation",
-    description: "Likely mispronunciation detected",
-    suggestion: "Practice the stress pattern of multi-syllable words",
-  },
-];
-
 export async function analyze(input: AnalyzeInput): Promise<AnalyzeOutput> {
-  // Mock: in production, this would call an LLM provider
-  // (e.g., OpenAI GPT, Anthropic Claude, Google Gemini)
+  const result = scoreTranscript({
+    transcript: input.transcript,
+    question: input.question,
+    speakingPart: input.partNumber,
+  });
+
   const wordCount = input.transcript.split(/\s+/).filter(Boolean).length;
 
-  // Select 1-2 mock issues based on transcript length
-  const issueCount = wordCount > 30 ? 2 : 1;
-  const shuffled = [...MOCK_ISSUES].sort(() => Math.random() - 0.5);
-  const issues = shuffled.slice(0, issueCount).map((issue) => ({
-    ...issue,
-    excerpt:
-      wordCount > 10
-        ? input.transcript.split(" ").slice(0, 5).join(" ") + "..."
-        : undefined,
-  }));
+  // Convert weaknesses + suggestions into structured issues
+  const issues: AnalysisIssue[] = [];
 
-  const baseScore = 5.5 + Math.random() * 2;
+  if (result.vocabulary < 6) {
+    issues.push({
+      type: "vocabulary",
+      description: "Limited vocabulary range",
+      suggestion: result.suggestions.find((s) => /synonym|paraphras/i.test(s))
+        ?? "Use a wider range of vocabulary and paraphrasing",
+    });
+  }
+
+  if (result.coherence < 6) {
+    issues.push({
+      type: "coherence",
+      description: "Weak use of discourse markers",
+      suggestion: result.suggestions.find((s) => /connector|linking/i.test(s))
+        ?? "Use linking words to connect your ideas more clearly",
+    });
+  }
+
+  if (result.grammar < 6) {
+    issues.push({
+      type: "grammar",
+      description: "Simple sentence structures",
+      suggestion: result.suggestions.find((s) => /complex|clause|conjunction/i.test(s))
+        ?? "Use a mix of simple and complex sentence structures",
+    });
+  }
+
+  if (result.fluency < 5.5) {
+    issues.push({
+      type: "pronunciation",
+      description: "Frequent hesitations affect fluency",
+      suggestion: result.suggestions.find((s) => /filler|pause|hesitat/i.test(s))
+        ?? "Reduce filler words and practice smoother delivery",
+    });
+  }
+
+  // Build feedback from strengths + suggestions
+  const feedbackParts: string[] = [];
+  if (result.strengths.length > 0) {
+    feedbackParts.push(result.strengths.join(". ") + ".");
+  }
+  if (result.suggestions.length > 0) {
+    feedbackParts.push("Areas to improve: " + result.suggestions.join("; ") + ".");
+  }
 
   return {
     id: randomId(),
     transcriptId: input.transcriptId,
     wordCount,
     issues,
-    vocabularyScore: Math.round((baseScore + Math.random()) * 2) / 2,
-    coherenceScore: Math.round((baseScore - 0.5 + Math.random()) * 2) / 2,
-    grammarScore: Math.round((baseScore - 0.3 + Math.random()) * 2) / 2,
-    feedback: `Your response for Part ${input.partNumber} demonstrates ${wordCount > 50 ? "good" : "adequate"} development. Consider expanding on your ideas with specific examples and using a wider range of vocabulary to achieve a higher band score.`,
+    vocabularyScore: result.vocabulary,
+    coherenceScore: result.coherence,
+    grammarScore: result.grammar,
+    feedback: feedbackParts.join(" "),
   };
 }

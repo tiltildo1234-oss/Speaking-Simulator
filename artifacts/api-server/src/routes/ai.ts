@@ -35,12 +35,12 @@ router.post("/analyze", async (req, res) => {
 
 router.post("/score", async (req, res) => {
   try {
-    const { analysisIds, analyses } = req.body;
-    if (!analysisIds || !analyses) {
-      res.status(400).json({ error: "analysisIds and analyses are required" });
+    const { transcript, question, speakingPart } = req.body;
+    if (!transcript || !speakingPart) {
+      res.status(400).json({ error: "transcript and speakingPart are required" });
       return;
     }
-    const result = await score({ analysisIds, analyses });
+    const result = await score({ transcript, question, speakingPart });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Scoring failed" });

@@ -26,15 +26,18 @@ export interface AnalysisResult {
 
 export interface ScoreBreakdown {
   fluency: number;
-  lexicalResource: number;
-  grammaticalRange: number;
+  grammar: number;
+  vocabulary: number;
   pronunciation: number;
+  coherence: number;
 }
 
 export interface ScoreResult {
   id: string;
   overallBand: number;
   breakdown: ScoreBreakdown;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
   analysisIds: string[];
-  summary: string;
 }
