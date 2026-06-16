@@ -10,7 +10,7 @@ type Phase = "intro" | "prep" | "speak";
 export default function Part2() {
   const { selectedPair, goToPart, savePart2Answer } = useTest();
   const [phase, setPhase] = useState<Phase>("intro");
-  const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
+  const { recordingState, audioUrl, transcript, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
   const part2 = selectedPair?.part2;
@@ -27,7 +27,11 @@ export default function Part2() {
   function handleFinish() {
     if (recordingState === "recording") stopRecording();
     if (audioUrl) {
-      savePart2Answer({ transcript: "", audioUrl });
+      savePart2Answer({
+        transcript: transcript?.transcript ?? "",
+        audioUrl,
+        transcriptId: transcript?.id,
+      });
     }
     goToPart("part3");
   }

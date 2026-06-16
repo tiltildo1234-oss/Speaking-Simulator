@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { TranscriptResult } from "@/types/ai";
 
 export type RecordingState = "idle" | "recording" | "stopped";
 
@@ -8,11 +9,36 @@ interface UseAudioRecorderReturn {
   stopRecording: () => void;
   resetRecording: () => void;
   audioUrl: string | null;
+  transcript: TranscriptResult | null;
+  isTranscribing: boolean;
+}
+
+async function transcribeAudio(blob: Blob): Promise<TranscriptResult> {
+  const reader = new FileReader();
+  const dataUrl = await new Promise<string>((resolve) => {
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+
+  const res = await fetch("/api/transcribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      audioData: dataUrl,
+      mimeType: blob.type,
+      language: "en",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Transcription failed");
+  return res.json();
 }
 
 export function useSpeechRecognition(): UseAudioRecorderReturn {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<TranscriptResult | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -20,6 +46,7 @@ export function useSpeechRecognition(): UseAudioRecorderReturn {
 
   const startRecording = useCallback(async () => {
     setAudioUrl(null);
+    setTranscript(null);
     chunksRef.current = [];
 
     try {
@@ -34,7 +61,15 @@ export function useSpeechRecognition(): UseAudioRecorderReturn {
       };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioUrl(URL.createObjectURL(blob));
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+
+        // Transcribe in background
+        setIsTranscribing(true);
+        transcribeAudio(blob)
+          .then(setTranscript)
+          .catch(() => setTranscript(null))
+          .finally(() => setIsTranscribing(false));
       };
       mr.start();
       setRecordingState("recording");
@@ -63,6 +98,7 @@ export function useSpeechRecognition(): UseAudioRecorderReturn {
       streamRef.current = null;
     }
     setAudioUrl(null);
+    setTranscript(null);
     setRecordingState("idle");
   }, []);
 
@@ -77,5 +113,5 @@ export function useSpeechRecognition(): UseAudioRecorderReturn {
     };
   }, []);
 
-  return { recordingState, startRecording, stopRecording, resetRecording, audioUrl };
+  return { recordingState, startRecording, stopRecording, resetRecording, audioUrl, transcript, isTranscribing };
 }

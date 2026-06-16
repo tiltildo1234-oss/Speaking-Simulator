@@ -7,7 +7,7 @@ import RecordingPanel from "@/components/RecordingPanel";
 export default function Part1() {
   const { part1Questions, part1Meta, goToPart, savePart1Answer } = useTest();
   const [questionIndex, setQuestionIndex] = useState(0);
-  const { recordingState, audioUrl, startRecording, stopRecording, resetRecording } =
+  const { recordingState, audioUrl, transcript, startRecording, stopRecording, resetRecording } =
     useSpeechRecognition();
 
   const currentQuestion = part1Questions[questionIndex] ?? "";
@@ -22,7 +22,11 @@ export default function Part1() {
   function handleNext() {
     if (recordingState === "recording") stopRecording();
     if (audioUrl) {
-      savePart1Answer(questionIndex, { transcript: "", audioUrl });
+      savePart1Answer(questionIndex, {
+        transcript: transcript?.transcript ?? "",
+        audioUrl,
+        transcriptId: transcript?.id,
+      });
     }
     resetRecording();
     if (!isLast) {

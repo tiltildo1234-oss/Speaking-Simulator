@@ -1,11 +1,14 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { Part2Part3Set, Quarter, shuffleArray } from "@/data/questionsDB";
+import type { AnalysisResult, ScoreResult } from "@/types/ai";
 
 export type TestPart = "home" | "part1" | "part2" | "part3" | "results" | "admin";
 
 export interface AnswerRecord {
   transcript: string;
   audioUrl: string | null;
+  transcriptId?: string;
+  analysis?: AnalysisResult;
 }
 
 export interface Part1QuestionMeta {
@@ -21,11 +24,16 @@ interface TestState {
   part1Answers: Record<number, AnswerRecord>;
   part2Answer: AnswerRecord | null;
   part3Answers: Record<number, AnswerRecord>;
+  scoreResult: ScoreResult | null;
   startTest: (quarter: Quarter) => void;
   goToPart: (part: TestPart) => void;
   savePart1Answer: (index: number, answer: AnswerRecord) => void;
   savePart2Answer: (answer: AnswerRecord) => void;
   savePart3Answer: (index: number, answer: AnswerRecord) => void;
+  updatePart1Answer: (index: number, answer: AnswerRecord) => void;
+  updatePart2Answer: (answer: AnswerRecord) => void;
+  updatePart3Answer: (index: number, answer: AnswerRecord) => void;
+  setScoreResult: (result: ScoreResult | null) => void;
   resetTest: () => void;
 }
 
@@ -65,6 +73,7 @@ export function TestProvider({ children }: { children: ReactNode }) {
   const [part1Answers, setPart1Answers] = useState<Record<number, AnswerRecord>>({});
   const [part2Answer, setPart2Answer] = useState<AnswerRecord | null>(null);
   const [part3Answers, setPart3Answers] = useState<Record<number, AnswerRecord>>({});
+  const [scoreResult, setScoreResultState] = useState<ScoreResult | null>(null);
 
   const startTest = useCallback((quarter: Quarter) => {
     if (quarter.part1Topics.length === 0) return;
@@ -76,6 +85,7 @@ export function TestProvider({ children }: { children: ReactNode }) {
     setPart1Answers({});
     setPart2Answer(null);
     setPart3Answers({});
+    setScoreResultState(null);
     setCurrentPart("part1");
   }, []);
 
@@ -93,6 +103,22 @@ export function TestProvider({ children }: { children: ReactNode }) {
     setPart3Answers((prev) => ({ ...prev, [index]: answer }));
   }, []);
 
+  const updatePart1Answer = useCallback((index: number, answer: AnswerRecord) => {
+    setPart1Answers((prev) => ({ ...prev, [index]: answer }));
+  }, []);
+
+  const updatePart2Answer = useCallback((answer: AnswerRecord) => {
+    setPart2Answer(answer);
+  }, []);
+
+  const updatePart3Answer = useCallback((index: number, answer: AnswerRecord) => {
+    setPart3Answers((prev) => ({ ...prev, [index]: answer }));
+  }, []);
+
+  const setScoreResult = useCallback((result: ScoreResult | null) => {
+    setScoreResultState(result);
+  }, []);
+
   const resetTest = useCallback(() => {
     setCurrentPart("home");
     setPart1Questions([]);
@@ -101,6 +127,7 @@ export function TestProvider({ children }: { children: ReactNode }) {
     setPart1Answers({});
     setPart2Answer(null);
     setPart3Answers({});
+    setScoreResultState(null);
   }, []);
 
   return (
@@ -118,6 +145,11 @@ export function TestProvider({ children }: { children: ReactNode }) {
         savePart1Answer,
         savePart2Answer,
         savePart3Answer,
+        updatePart1Answer,
+        updatePart2Answer,
+        updatePart3Answer,
+        scoreResult,
+        setScoreResult,
         resetTest,
       }}
     >
